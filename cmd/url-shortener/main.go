@@ -9,19 +9,18 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/dalibortosic00/url-shortener/internal/config"
+	"github.com/dalibortosic00/url-shortener/internal/generator"
+	"github.com/dalibortosic00/url-shortener/internal/handlers"
+	"github.com/dalibortosic00/url-shortener/internal/services"
+	"github.com/dalibortosic00/url-shortener/internal/store"
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/go-chi/cors"
-	"github.com/joho/godotenv"
 )
 
 func main() {
-	_ = godotenv.Load()
-
-	port := os.Getenv("PORT")
-	if port == "" {
-		log.Fatal("PORT environment variable is required")
-	}
+	cfg := config.Load()
 
 	router := chi.NewRouter()
 
@@ -35,27 +34,24 @@ func main() {
 		MaxAge:         300,
 	}))
 
-	router.Get("/health", func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "application/json")
+	shortenerService := services.NewShortenerService(store.NewMemoryStore(), generator.NewRandomGenerator(6))
+	shortenHandler := handlers.NewShortenHandler(shortenerService, cfg.BaseURL)
+	resolveHandler := handlers.NewResolveHandler(shortenerService)
 
-		w.WriteHeader(http.StatusOK)
-
-		_, err := w.Write([]byte(`{"status":"ok"}`))
-		if err != nil {
-			log.Printf("Failed to write health response: %v", err)
-		}
-	})
+	router.Get("/health", handlers.Health)
+	router.Post("/shorten", shortenHandler.Shorten)
+	router.Get("/{code}", resolveHandler.Resolve)
 
 	server := &http.Server{
 		Handler:      router,
-		Addr:         ":" + port,
+		Addr:         ":" + cfg.Port,
 		ReadTimeout:  5 * time.Second,
 		WriteTimeout: 10 * time.Second,
 		IdleTimeout:  120 * time.Second,
 	}
 
 	go func() {
-		log.Printf("Server starting on port %s", port)
+		log.Printf("Starting server on port %s with BaseURL %s", cfg.Port, cfg.BaseURL)
 		if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 			log.Fatalf("Listen: %s\n", err)
 		}
