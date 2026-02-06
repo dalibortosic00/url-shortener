@@ -9,6 +9,14 @@ import (
 	"github.com/dalibortosic00/url-shortener/internal/services"
 )
 
+const (
+	errEmptyURL        = "URL cannot be empty"
+	errInvalidFormat   = "The URL format is invalid"
+	errInvalidDomain   = "A valid domain name is required"
+	errInvalidTLD      = "Domain must have a valid TLD (e.g. .com, .net)"
+	errForbiddenDomain = "Cannot shorten URLs from this domain"
+)
+
 type ShortenHandler struct {
 	service       *services.ShortenerService
 	baseURL       string
@@ -28,10 +36,10 @@ type shortenRequest struct {
 	URL string `json:"url"`
 }
 
-func (r *shortenRequest) Validate(forbiddenHost string) (string, bool) {
+func (r *shortenRequest) validate(forbiddenHost string) (string, bool) {
 	input := strings.TrimSpace(r.URL)
 	if input == "" {
-		return "URL cannot be empty", false
+		return errEmptyURL, false
 	}
 
 	if !strings.HasPrefix(input, "http://") && !strings.HasPrefix(input, "https://") {
@@ -40,23 +48,23 @@ func (r *shortenRequest) Validate(forbiddenHost string) (string, bool) {
 
 	u, err := url.ParseRequestURI(input)
 	if err != nil {
-		return "The URL format is invalid", false
+		return errInvalidFormat, false
 	}
 
 	host := u.Hostname()
 	if host == "" || host == "." {
-		return "A valid domain name is required", false
+		return errInvalidDomain, false
 	}
 
 	if host != "localhost" {
 		parts := strings.Split(host, ".")
-		if len(parts) < 2 || parts[len(parts)-1] == "" {
-			return "Domain must have a valid TLD (e.g. .com, .net)", false
+		if len(parts) < 2 || parts[0] == "" || parts[len(parts)-1] == "" {
+			return errInvalidTLD, false
 		}
 	}
 
 	if strings.EqualFold(u.Host, forbiddenHost) {
-		return "Cannot shorten URLs from this domain", false
+		return errForbiddenDomain, false
 	}
 
 	r.URL = input
@@ -73,7 +81,7 @@ func (h *ShortenHandler) Shorten(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if msg, ok := req.Validate(h.forbiddenHost); !ok {
+	if msg, ok := req.validate(h.forbiddenHost); !ok {
 		respondWithError(w, http.StatusBadRequest, msg)
 		return
 	}
