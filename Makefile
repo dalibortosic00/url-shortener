@@ -30,6 +30,11 @@ test:
 	@echo "Running tests..."
 	@go test -v ./...
 
+## test/race: Run tests with the race detector enabled
+test/race:
+	@echo "Checking for data races..."
+	@go test -v -race ./...
+
 ## test/cover: Run tests and open the coverage report in the browser
 test/cover:
 	@echo "Running tests with coverage..."
