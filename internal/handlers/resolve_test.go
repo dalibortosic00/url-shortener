@@ -5,8 +5,10 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 
 	"github.com/dalibortosic00/url-shortener/internal/generator"
+	"github.com/dalibortosic00/url-shortener/internal/models"
 	"github.com/dalibortosic00/url-shortener/internal/services"
 	"github.com/dalibortosic00/url-shortener/internal/store"
 	"github.com/go-chi/chi/v5"
@@ -20,7 +22,11 @@ func TestResolveHandler_Resolve(t *testing.T) {
 
 	testCode := "abc123"
 	testURL := "https://google.com"
-	ms.Save(context.Background(), testCode, testURL)
+	ms.Save(context.Background(), &models.LinkRecord{
+		Code:      testCode,
+		URL:       testURL,
+		CreatedAt: time.Now(),
+	})
 
 	tests := []struct {
 		name             string

@@ -9,27 +9,27 @@ import (
 
 type MemoryStore struct {
 	mux       sync.RWMutex
-	codeToUrl map[string]string
+	records   map[string]*models.LinkRecord
 	urlToCode map[string]string
 }
 
 func NewMemoryStore() *MemoryStore {
 	return &MemoryStore{
-		codeToUrl: make(map[string]string),
+		records:   make(map[string]*models.LinkRecord),
 		urlToCode: make(map[string]string),
 	}
 }
 
-func (s *MemoryStore) Save(ctx context.Context, code string, url string) error {
+func (s *MemoryStore) Save(ctx context.Context, record *models.LinkRecord) error {
 	s.mux.Lock()
 	defer s.mux.Unlock()
 
-	if _, exists := s.codeToUrl[code]; exists {
+	if _, exists := s.records[record.Code]; exists {
 		return models.ErrCollision
 	}
 
-	s.codeToUrl[code] = url
-	s.urlToCode[url] = code
+	s.records[record.Code] = record
+	s.urlToCode[record.URL] = record.Code
 	return nil
 }
 
@@ -37,8 +37,11 @@ func (s *MemoryStore) Load(ctx context.Context, code string) (string, bool) {
 	s.mux.RLock()
 	defer s.mux.RUnlock()
 
-	url, ok := s.codeToUrl[code]
-	return url, ok
+	record, ok := s.records[code]
+	if !ok {
+		return "", false
+	}
+	return record.URL, true
 }
 
 func (s *MemoryStore) GetByURL(ctx context.Context, url string) (string, bool) {

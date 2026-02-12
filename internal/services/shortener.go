@@ -3,6 +3,7 @@ package services
 import (
 	"context"
 	"errors"
+	"time"
 
 	"github.com/dalibortosic00/url-shortener/internal/generator"
 	"github.com/dalibortosic00/url-shortener/internal/models"
@@ -37,7 +38,13 @@ func (s *ShortenerService) Create(ctx context.Context, url string) (string, erro
 
 		code := s.generator.Generate()
 
-		err := s.store.Save(ctx, code, url)
+		record := &models.LinkRecord{
+			Code:      code,
+			URL:       url,
+			CreatedAt: time.Now(),
+		}
+
+		err := s.store.Save(ctx, record)
 		if err == nil {
 			return code, nil
 		}

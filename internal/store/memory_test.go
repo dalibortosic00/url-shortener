@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/dalibortosic00/url-shortener/internal/models"
 )
@@ -16,7 +17,13 @@ func TestMemoryStore(t *testing.T) {
 	t.Run("Save and Load", func(t *testing.T) {
 		code, url := "abc123", "https://example.com"
 
-		if err := s.Save(ctx, code, url); err != nil {
+		shortenedURL := &models.LinkRecord{
+			Code:      code,
+			URL:       url,
+			CreatedAt: time.Now(),
+		}
+
+		if err := s.Save(ctx, shortenedURL); err != nil {
 			t.Fatalf("failed to save: %v", err)
 		}
 
@@ -33,9 +40,17 @@ func TestMemoryStore(t *testing.T) {
 
 	t.Run("Collision Error", func(t *testing.T) {
 		code := "collision"
-		s.Save(ctx, code, "https://example.com")
+		s.Save(ctx, &models.LinkRecord{
+			Code:      code,
+			URL:       "https://example.com",
+			CreatedAt: time.Now(),
+		})
 
-		err := s.Save(ctx, code, "https://another.com")
+		err := s.Save(ctx, &models.LinkRecord{
+			Code:      code,
+			URL:       "https://another.com",
+			CreatedAt: time.Now(),
+		})
 		if err != models.ErrCollision {
 			t.Fatalf("expected ErrCollision, got %v", err)
 		}
@@ -55,7 +70,11 @@ func TestMemoryStore_Concurrent(t *testing.T) {
 			defer wg.Done()
 			code := fmt.Sprintf("code-%d", n)
 			url := fmt.Sprintf("url-%d", n)
-			_ = s.Save(ctx, code, url)
+			_ = s.Save(ctx, &models.LinkRecord{
+				Code:      code,
+				URL:       url,
+				CreatedAt: time.Now(),
+			})
 		}(i)
 	}
 
