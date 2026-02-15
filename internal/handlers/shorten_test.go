@@ -51,7 +51,8 @@ func TestShortenRequestValidate(t *testing.T) {
 func TestShortenHandler_Shorten(t *testing.T) {
 	ms := store.NewMemoryStore()
 	gen := generator.NewRandomGenerator(6)
-	svc := services.NewShortenerService(ms, gen)
+	// Using the same store for both public and private to simplify testing
+	svc := services.NewShortenerService(ms, ms, gen)
 	h := NewShortenHandler(svc, "https://sho.rt")
 
 	tests := []struct {

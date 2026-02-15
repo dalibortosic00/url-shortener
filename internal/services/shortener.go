@@ -11,21 +11,24 @@ import (
 )
 
 type ShortenerService struct {
-	store      *store.MemoryStore
-	generator  *generator.RandomGenerator
-	maxRetries int
+	publicStore  store.Store
+	privateStore store.Store
+	generator    *generator.RandomGenerator
+	maxRetries   int
 }
 
-func NewShortenerService(store *store.MemoryStore, generator *generator.RandomGenerator) *ShortenerService {
+func NewShortenerService(publicStore store.Store, privateStore store.Store, generator *generator.RandomGenerator) *ShortenerService {
 	return &ShortenerService{
-		store:      store,
-		generator:  generator,
-		maxRetries: 3,
+		publicStore:  publicStore,
+		privateStore: privateStore,
+		generator:    generator,
+		maxRetries:   3,
 	}
 }
 
+// TODO: Handle private store for authenticated users
 func (s *ShortenerService) Create(ctx context.Context, url string) (string, error) {
-	if existingCode, exists := s.store.GetByURL(ctx, url); exists {
+	if existingCode, exists := s.publicStore.GetByURL(ctx, url); exists {
 		return existingCode, nil
 	}
 
@@ -44,7 +47,7 @@ func (s *ShortenerService) Create(ctx context.Context, url string) (string, erro
 			CreatedAt: time.Now(),
 		}
 
-		err := s.store.Save(ctx, record)
+		err := s.publicStore.Save(ctx, record)
 		if err == nil {
 			return code, nil
 		}
@@ -57,6 +60,7 @@ func (s *ShortenerService) Create(ctx context.Context, url string) (string, erro
 	return "", models.ErrFailedToGenerate
 }
 
+// TODO: Handle private store for authenticated users
 func (s *ShortenerService) Resolve(ctx context.Context, code string) (string, bool) {
 	select {
 	case <-ctx.Done():
@@ -64,5 +68,5 @@ func (s *ShortenerService) Resolve(ctx context.Context, code string) (string, bo
 	default:
 	}
 
-	return s.store.Load(ctx, code)
+	return s.publicStore.Load(ctx, code)
 }

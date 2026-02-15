@@ -7,6 +7,9 @@ import (
 	"github.com/dalibortosic00/url-shortener/internal/models"
 )
 
+// Compile-time check that MemoryStore implements Store interface
+var _ Store = (*MemoryStore)(nil)
+
 type MemoryStore struct {
 	mux       sync.RWMutex
 	records   map[string]*models.LinkRecord

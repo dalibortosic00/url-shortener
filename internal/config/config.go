@@ -8,8 +8,9 @@ import (
 )
 
 type Config struct {
-	Port    string
-	BaseURL string
+	Port        string
+	BaseURL     string
+	DatabaseURL string
 }
 
 func Load() *Config {
@@ -25,8 +26,14 @@ func Load() *Config {
 		baseURL = "http://localhost:" + port
 	}
 
+	databaseURL := os.Getenv("DB_URL")
+	if databaseURL == "" {
+		log.Fatal("DB_URL environment variable is required")
+	}
+
 	return &Config{
-		Port:    port,
-		BaseURL: baseURL,
+		Port:        port,
+		BaseURL:     baseURL,
+		DatabaseURL: databaseURL,
 	}
 }

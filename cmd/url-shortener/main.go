@@ -34,7 +34,16 @@ func main() {
 		MaxAge:         300,
 	}))
 
-	shortenerService := services.NewShortenerService(store.NewMemoryStore(), generator.NewRandomGenerator(6))
+	db, err := store.InitDB(cfg.DatabaseURL)
+	if err != nil {
+		log.Fatalf("Failed to connect to database: %v", err)
+	}
+	defer db.Close()
+
+	publicStore := store.NewMemoryStore()
+	privateStore := store.NewDatabaseStore(db)
+
+	shortenerService := services.NewShortenerService(publicStore, privateStore, generator.NewRandomGenerator(6))
 	shortenHandler := handlers.NewShortenHandler(shortenerService, cfg.BaseURL)
 	resolveHandler := handlers.NewResolveHandler(shortenerService)
 
