@@ -10,12 +10,13 @@ import (
 	"time"
 
 	"github.com/dalibortosic00/url-shortener/internal/config"
-	"github.com/dalibortosic00/url-shortener/internal/generator"
+	"github.com/dalibortosic00/url-shortener/internal/generators"
 	"github.com/dalibortosic00/url-shortener/internal/handlers"
+	"github.com/dalibortosic00/url-shortener/internal/middleware"
 	"github.com/dalibortosic00/url-shortener/internal/services"
 	"github.com/dalibortosic00/url-shortener/internal/store"
 	"github.com/go-chi/chi/v5"
-	"github.com/go-chi/chi/v5/middleware"
+	chiMiddleware "github.com/go-chi/chi/v5/middleware"
 	"github.com/go-chi/cors"
 )
 
@@ -24,9 +25,9 @@ func main() {
 
 	router := chi.NewRouter()
 
-	router.Use(middleware.RequestID)
-	router.Use(middleware.Logger)
-	router.Use(middleware.Recoverer)
+	router.Use(chiMiddleware.RequestID)
+	router.Use(chiMiddleware.Logger)
+	router.Use(chiMiddleware.Recoverer)
 	router.Use(cors.Handler(cors.Options{
 		AllowedOrigins: []string{"*"},
 		AllowedMethods: []string{"GET", "POST", "OPTIONS"},
@@ -43,13 +44,19 @@ func main() {
 	publicStore := store.NewMemoryStore()
 	privateStore := store.NewDatabaseStore(db)
 
-	shortenerService := services.NewShortenerService(publicStore, privateStore, generator.NewRandomGenerator(6))
+	authMiddleware := middleware.NewAuthMiddleware(privateStore)
+	randomGenerator := generators.NewRandomGenerator()
+	shortenerService := services.NewShortenerService(publicStore, privateStore, randomGenerator)
 	shortenHandler := handlers.NewShortenHandler(shortenerService, cfg.BaseURL)
 	resolveHandler := handlers.NewResolveHandler(shortenerService)
 
+	userService := services.NewUserService(privateStore, randomGenerator)
+	registerHandler := handlers.NewRegisterHandler(userService)
+
 	router.Get("/health", handlers.Health)
-	router.Post("/shorten", shortenHandler.Shorten)
+	router.Post("/shorten", authMiddleware.Middleware(shortenHandler.Shorten))
 	router.Get("/{code}", resolveHandler.Resolve)
+	router.Post("/register", registerHandler.Register)
 
 	server := &http.Server{
 		Handler:      router,

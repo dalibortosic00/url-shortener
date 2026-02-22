@@ -5,19 +5,19 @@ import (
 	"errors"
 	"time"
 
-	"github.com/dalibortosic00/url-shortener/internal/generator"
+	"github.com/dalibortosic00/url-shortener/internal/generators"
 	"github.com/dalibortosic00/url-shortener/internal/models"
 	"github.com/dalibortosic00/url-shortener/internal/store"
 )
 
 type ShortenerService struct {
-	publicStore  store.Store
-	privateStore store.Store
-	generator    *generator.RandomGenerator
+	publicStore  store.LinkStore
+	privateStore store.LinkStore
+	generator    *generators.RandomGenerator
 	maxRetries   int
 }
 
-func NewShortenerService(publicStore store.Store, privateStore store.Store, generator *generator.RandomGenerator) *ShortenerService {
+func NewShortenerService(publicStore store.LinkStore, privateStore store.LinkStore, generator *generators.RandomGenerator) *ShortenerService {
 	return &ShortenerService{
 		publicStore:  publicStore,
 		privateStore: privateStore,
@@ -26,10 +26,13 @@ func NewShortenerService(publicStore store.Store, privateStore store.Store, gene
 	}
 }
 
-// TODO: Handle private store for authenticated users
-func (s *ShortenerService) Create(ctx context.Context, url string) (string, error) {
-	if existingCode, exists := s.publicStore.GetByURL(ctx, url); exists {
-		return existingCode, nil
+func (s *ShortenerService) Create(ctx context.Context, url string, ownerID string) (string, error) {
+	store := s.privateStore
+	if ownerID == "" {
+		store = s.publicStore
+		if existingCode, exists := store.GetCodeByURL(ctx, url); exists {
+			return existingCode, nil
+		}
 	}
 
 	for i := 0; i < s.maxRetries; i++ {
@@ -39,20 +42,21 @@ func (s *ShortenerService) Create(ctx context.Context, url string) (string, erro
 		default:
 		}
 
-		code := s.generator.Generate()
+		code, err := s.generator.Generate(6)
+		if err != nil {
+			return "", err
+		}
 
 		record := &models.LinkRecord{
 			Code:      code,
 			URL:       url,
+			OwnerID:   ownerID,
 			CreatedAt: time.Now(),
 		}
 
-		err := s.publicStore.Save(ctx, record)
-		if err == nil {
+		if err := store.SaveLink(ctx, record); err == nil {
 			return code, nil
-		}
-
-		if !errors.Is(err, models.ErrCollision) {
+		} else if !errors.Is(err, models.ErrCollision) {
 			return "", err
 		}
 	}
@@ -60,13 +64,14 @@ func (s *ShortenerService) Create(ctx context.Context, url string) (string, erro
 	return "", models.ErrFailedToGenerate
 }
 
-// TODO: Handle private store for authenticated users
 func (s *ShortenerService) Resolve(ctx context.Context, code string) (string, bool) {
-	select {
-	case <-ctx.Done():
-		return "", false
-	default:
+	if record, ok := s.publicStore.LoadLink(ctx, code); ok {
+		return record.URL, true
 	}
 
-	return s.publicStore.Load(ctx, code)
+	if record, ok := s.privateStore.LoadLink(ctx, code); ok {
+		return record.URL, true
+	}
+
+	return "", false
 }

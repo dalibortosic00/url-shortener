@@ -8,7 +8,7 @@ import (
 )
 
 // Compile-time check that MemoryStore implements Store interface
-var _ Store = (*MemoryStore)(nil)
+var _ LinkStore = (*MemoryStore)(nil)
 
 type MemoryStore struct {
 	mux       sync.RWMutex
@@ -23,7 +23,7 @@ func NewMemoryStore() *MemoryStore {
 	}
 }
 
-func (s *MemoryStore) Save(ctx context.Context, record *models.LinkRecord) error {
+func (s *MemoryStore) SaveLink(ctx context.Context, record *models.LinkRecord) error {
 	s.mux.Lock()
 	defer s.mux.Unlock()
 
@@ -36,18 +36,18 @@ func (s *MemoryStore) Save(ctx context.Context, record *models.LinkRecord) error
 	return nil
 }
 
-func (s *MemoryStore) Load(ctx context.Context, code string) (string, bool) {
+func (s *MemoryStore) LoadLink(ctx context.Context, code string) (*models.LinkRecord, bool) {
 	s.mux.RLock()
 	defer s.mux.RUnlock()
 
 	record, ok := s.records[code]
 	if !ok {
-		return "", false
+		return nil, false
 	}
-	return record.URL, true
+	return record, true
 }
 
-func (s *MemoryStore) GetByURL(ctx context.Context, url string) (string, bool) {
+func (s *MemoryStore) GetCodeByURL(ctx context.Context, url string) (string, bool) {
 	s.mux.RLock()
 	defer s.mux.RUnlock()
 

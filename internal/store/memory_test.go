@@ -23,16 +23,16 @@ func TestMemoryStore(t *testing.T) {
 			CreatedAt: time.Now(),
 		}
 
-		if err := s.Save(ctx, shortenedURL); err != nil {
+		if err := s.SaveLink(ctx, shortenedURL); err != nil {
 			t.Fatalf("failed to save: %v", err)
 		}
 
-		loadedURL, ok := s.Load(ctx, code)
-		if !ok || loadedURL != url {
-			t.Fatalf("Load() = %v, %v; want %v, true", loadedURL, ok, url)
+		record, ok := s.LoadLink(ctx, code)
+		if !ok || record.URL != url {
+			t.Fatalf("Load() = %v, %v; want %v, true", record, ok, url)
 		}
 
-		loadedCode, ok := s.GetByURL(ctx, url)
+		loadedCode, ok := s.GetCodeByURL(ctx, url)
 		if !ok || loadedCode != code {
 			t.Fatalf("GetByURL() = %v, %v; want %v, true", loadedCode, ok, code)
 		}
@@ -40,13 +40,13 @@ func TestMemoryStore(t *testing.T) {
 
 	t.Run("Collision Error", func(t *testing.T) {
 		code := "collision"
-		s.Save(ctx, &models.LinkRecord{
+		s.SaveLink(ctx, &models.LinkRecord{
 			Code:      code,
 			URL:       "https://example.com",
 			CreatedAt: time.Now(),
 		})
 
-		err := s.Save(ctx, &models.LinkRecord{
+		err := s.SaveLink(ctx, &models.LinkRecord{
 			Code:      code,
 			URL:       "https://another.com",
 			CreatedAt: time.Now(),
@@ -70,7 +70,7 @@ func TestMemoryStore_Concurrent(t *testing.T) {
 			defer wg.Done()
 			code := fmt.Sprintf("code-%d", n)
 			url := fmt.Sprintf("url-%d", n)
-			_ = s.Save(ctx, &models.LinkRecord{
+			_ = s.SaveLink(ctx, &models.LinkRecord{
 				Code:      code,
 				URL:       url,
 				CreatedAt: time.Now(),
@@ -83,7 +83,7 @@ func TestMemoryStore_Concurrent(t *testing.T) {
 		go func(n int) {
 			defer wg.Done()
 			code := fmt.Sprintf("code-%d", n)
-			_, _ = s.Load(ctx, code)
+			_, _ = s.LoadLink(ctx, code)
 		}(i)
 	}
 

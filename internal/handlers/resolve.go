@@ -4,6 +4,7 @@ import (
 	"net/http"
 
 	"github.com/dalibortosic00/url-shortener/internal/services"
+	"github.com/dalibortosic00/url-shortener/internal/util"
 	"github.com/go-chi/chi/v5"
 )
 
@@ -20,7 +21,7 @@ func (h *ResolveHandler) Resolve(w http.ResponseWriter, r *http.Request) {
 
 	url, exists := h.service.Resolve(r.Context(), code)
 	if !exists {
-		respondWithError(w, http.StatusNotFound, "Short code not found")
+		util.RespondWithError(w, http.StatusNotFound, "Short code not found")
 		return
 	}
 

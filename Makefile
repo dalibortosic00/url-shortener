@@ -1,7 +1,11 @@
 BINARY_NAME=url-shortener
 BUILD_DIR=bin
 
-.PHONY: all build run clean test test/cover help
+# Load environment variables from .env file if it exists
+-include .env
+export
+
+.PHONY: all build run clean test test/cover test/race db/migrate db/rollback help
 
 all: build
 
@@ -47,6 +51,24 @@ clean:
 	@echo "Cleaning up..."
 	@rm -rf $(BUILD_DIR)
 	@rm -f coverage.out
+
+## db/migrate: Run database migrations
+db/migrate:
+	@echo "Running database migrations..."
+	@for migration in migrations/*.up.sql; do \
+		echo "Running $$migration..."; \
+		psql $(DB_URL) -f $$migration; \
+	done
+	@echo "Migrations complete!"
+
+## db/rollback: Rollback database migrations
+db/rollback:
+	@echo "Rolling back database migrations..."
+	@for migration in $$(ls -r migrations/*.down.sql); do \
+		echo "Rolling back $$migration..."; \
+		psql $(DB_URL) -f $$migration; \
+	done
+	@echo "Rollback complete!"
 
 ## help: Show this help message
 help:

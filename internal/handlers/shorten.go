@@ -6,7 +6,9 @@ import (
 	"net/url"
 	"strings"
 
+	"github.com/dalibortosic00/url-shortener/internal/middleware"
 	"github.com/dalibortosic00/url-shortener/internal/services"
+	"github.com/dalibortosic00/url-shortener/internal/util"
 )
 
 const (
@@ -77,22 +79,23 @@ func (h *ShortenHandler) Shorten(w http.ResponseWriter, r *http.Request) {
 	var req shortenRequest
 
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		respondWithError(w, http.StatusBadRequest, "Invalid JSON payload")
+		util.RespondWithError(w, http.StatusBadRequest, "Invalid JSON payload")
 		return
 	}
 
 	if msg, ok := req.validate(h.forbiddenHost); !ok {
-		respondWithError(w, http.StatusBadRequest, msg)
+		util.RespondWithError(w, http.StatusBadRequest, msg)
 		return
 	}
 
-	code, err := h.service.Create(r.Context(), req.URL)
+	userID := middleware.UserIDFromContext(r.Context())
+	code, err := h.service.Create(r.Context(), req.URL, userID)
 	if err != nil {
-		respondWithError(w, http.StatusInternalServerError, "Internal service error")
+		util.RespondWithError(w, http.StatusInternalServerError, "Internal service error")
 		return
 	}
 
-	respondWithJSON(w, http.StatusOK, map[string]string{
+	util.RespondWithJSON(w, http.StatusOK, map[string]string{
 		"short_url": h.baseURL + "/" + code,
 	})
 }

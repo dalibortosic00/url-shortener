@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/dalibortosic00/url-shortener/internal/generator"
+	"github.com/dalibortosic00/url-shortener/internal/generators"
 	"github.com/dalibortosic00/url-shortener/internal/services"
 	"github.com/dalibortosic00/url-shortener/internal/store"
 )
@@ -50,7 +50,7 @@ func TestShortenRequestValidate(t *testing.T) {
 
 func TestShortenHandler_Shorten(t *testing.T) {
 	ms := store.NewMemoryStore()
-	gen := generator.NewRandomGenerator(6)
+	gen := generators.NewRandomGenerator()
 	// Using the same store for both public and private to simplify testing
 	svc := services.NewShortenerService(ms, ms, gen)
 	h := NewShortenHandler(svc, "https://sho.rt")

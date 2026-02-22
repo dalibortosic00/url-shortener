@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/dalibortosic00/url-shortener/internal/generator"
+	"github.com/dalibortosic00/url-shortener/internal/generators"
 	"github.com/dalibortosic00/url-shortener/internal/models"
 	"github.com/dalibortosic00/url-shortener/internal/services"
 	"github.com/dalibortosic00/url-shortener/internal/store"
@@ -16,14 +16,14 @@ import (
 
 func TestResolveHandler_Resolve(t *testing.T) {
 	ms := store.NewMemoryStore()
-	gen := generator.NewRandomGenerator(6)
+	gen := generators.NewRandomGenerator()
 	// Using the same store for both public and private to simplify testing
 	svc := services.NewShortenerService(ms, ms, gen)
 	h := NewResolveHandler(svc)
 
 	testCode := "abc123"
 	testURL := "https://google.com"
-	ms.Save(context.Background(), &models.LinkRecord{
+	ms.SaveLink(context.Background(), &models.LinkRecord{
 		Code:      testCode,
 		URL:       testURL,
 		CreatedAt: time.Now(),

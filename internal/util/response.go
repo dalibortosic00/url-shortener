@@ -1,4 +1,4 @@
-package handlers
+package util
 
 import (
 	"encoding/json"
@@ -6,7 +6,7 @@ import (
 	"net/http"
 )
 
-func respondWithJSON(w http.ResponseWriter, statusCode int, payload any) {
+func RespondWithJSON(w http.ResponseWriter, statusCode int, payload any) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(statusCode)
 
@@ -15,10 +15,10 @@ func respondWithJSON(w http.ResponseWriter, statusCode int, payload any) {
 	}
 }
 
-func respondWithError(w http.ResponseWriter, statusCode int, msg string) {
+func RespondWithError(w http.ResponseWriter, statusCode int, msg string) {
 	if statusCode >= 500 {
 		log.Printf("Internal Server Error: %s", msg)
 	}
 
-	respondWithJSON(w, statusCode, map[string]string{"error": msg})
+	RespondWithJSON(w, statusCode, map[string]string{"error": msg})
 }
