@@ -1,13 +1,13 @@
 package handlers
 
 import (
+	"context"
 	"encoding/json"
 	"net/http"
 	"net/url"
 	"strings"
 
-	"github.com/dalibortosic00/url-shortener/internal/middleware"
-	"github.com/dalibortosic00/url-shortener/internal/services"
+	"github.com/dalibortosic00/url-shortener/internal/request"
 	"github.com/dalibortosic00/url-shortener/internal/util"
 )
 
@@ -19,13 +19,17 @@ const (
 	errForbiddenDomain = "Cannot shorten URLs from this domain"
 )
 
+type LinkCreator interface {
+	Create(ctx context.Context, url string, ownerID string) (string, error)
+}
+
 type ShortenHandler struct {
-	service       *services.ShortenerService
+	service       LinkCreator
 	baseURL       string
 	forbiddenHost string
 }
 
-func NewShortenHandler(service *services.ShortenerService, baseURL string) *ShortenHandler {
+func NewShortenHandler(service LinkCreator, baseURL string) *ShortenHandler {
 	parsed, _ := url.Parse(baseURL)
 	return &ShortenHandler{
 		service:       service,
@@ -88,7 +92,7 @@ func (h *ShortenHandler) Shorten(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	userID := middleware.UserIDFromContext(r.Context())
+	userID := request.UserID(r.Context())
 	code, err := h.service.Create(r.Context(), req.URL, userID)
 	if err != nil {
 		util.RespondWithError(w, http.StatusInternalServerError, "Internal service error")

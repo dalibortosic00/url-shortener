@@ -7,17 +7,33 @@ import (
 
 	"github.com/dalibortosic00/url-shortener/internal/generators"
 	"github.com/dalibortosic00/url-shortener/internal/models"
-	"github.com/dalibortosic00/url-shortener/internal/store"
 )
 
+// LinkStore defines the interface for URL shortener storage implementations.
+// Different implementations can have different deduplication behaviors:
+// - MemoryStore: deduplicates URLs (GetByURL returns existing codes)
+// - DatabaseStore: allows multiple codes per URL for authorized users (GetByURL returns false)
+type LinkStore interface {
+	// SaveLink persists a link record. Returns ErrCollision if code already exists.
+	SaveLink(ctx context.Context, record *models.LinkRecord) error
+
+	// LoadLink retrieves the URL for a given code. Returns (url, true) if found.
+	LoadLink(ctx context.Context, code string) (*models.LinkRecord, bool)
+
+	// GetCodeByURL checks if a URL already has a code (for deduplication).
+	// Returns (code, true) if found, ("", false) otherwise.
+	// Database implementations should return ("", false) to allow multiple codes per URL.
+	GetCodeByURL(ctx context.Context, url string) (string, bool)
+}
+
 type ShortenerService struct {
-	publicStore  store.LinkStore
-	privateStore store.LinkStore
+	publicStore  LinkStore
+	privateStore LinkStore
 	generator    *generators.RandomGenerator
 	maxRetries   int
 }
 
-func NewShortenerService(publicStore store.LinkStore, privateStore store.LinkStore, generator *generators.RandomGenerator) *ShortenerService {
+func NewShortenerService(publicStore LinkStore, privateStore LinkStore, generator *generators.RandomGenerator) *ShortenerService {
 	return &ShortenerService{
 		publicStore:  publicStore,
 		privateStore: privateStore,

@@ -1,18 +1,22 @@
 package handlers
 
 import (
+	"context"
 	"net/http"
 
-	"github.com/dalibortosic00/url-shortener/internal/services"
 	"github.com/dalibortosic00/url-shortener/internal/util"
 	"github.com/go-chi/chi/v5"
 )
 
-type ResolveHandler struct {
-	service *services.ShortenerService
+type LinkResolver interface {
+	Resolve(ctx context.Context, code string) (string, bool)
 }
 
-func NewResolveHandler(service *services.ShortenerService) *ResolveHandler {
+type ResolveHandler struct {
+	service LinkResolver
+}
+
+func NewResolveHandler(service LinkResolver) *ResolveHandler {
 	return &ResolveHandler{service: service}
 }
 

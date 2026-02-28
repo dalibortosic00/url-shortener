@@ -9,9 +9,6 @@ import (
 	"github.com/lib/pq"
 )
 
-// Compile-time check that DatabaseStore implements Store interface
-var _ LinkStore = (*DatabaseStore)(nil)
-
 type DatabaseStore struct {
 	db *sql.DB
 }
@@ -19,8 +16,6 @@ type DatabaseStore struct {
 func NewDatabaseStore(db *sql.DB) *DatabaseStore {
 	return &DatabaseStore{db: db}
 }
-
-var ErrRecordNotFound = errors.New("record not found")
 
 func (s *DatabaseStore) SaveLink(ctx context.Context, record *models.LinkRecord) error {
 	query := `
@@ -79,7 +74,7 @@ func (s *DatabaseStore) GetUserByAPIKey(ctx context.Context, apiKey string) (*mo
 	err := s.db.QueryRowContext(ctx, query, apiKey).Scan(&user.ID, &user.Name)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			return nil, ErrRecordNotFound
+			return nil, models.ErrRecordNotFound
 		}
 		return nil, err
 	}

@@ -44,14 +44,13 @@ func main() {
 	publicStore := store.NewMemoryStore()
 	privateStore := store.NewDatabaseStore(db)
 
-	authMiddleware := middleware.NewAuthMiddleware(privateStore)
 	randomGenerator := generators.NewRandomGenerator()
+	userService := services.NewUserService(privateStore, randomGenerator)
+	registerHandler := handlers.NewRegisterHandler(userService)
+	authMiddleware := middleware.NewAuthMiddleware(userService)
 	shortenerService := services.NewShortenerService(publicStore, privateStore, randomGenerator)
 	shortenHandler := handlers.NewShortenHandler(shortenerService, cfg.BaseURL)
 	resolveHandler := handlers.NewResolveHandler(shortenerService)
-
-	userService := services.NewUserService(privateStore, randomGenerator)
-	registerHandler := handlers.NewRegisterHandler(userService)
 
 	router.Get("/health", handlers.Health)
 	router.Post("/shorten", authMiddleware.Middleware(shortenHandler.Shorten))

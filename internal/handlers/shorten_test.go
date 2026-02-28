@@ -1,16 +1,24 @@
 package handlers
 
 import (
-	"encoding/json"
+	"context"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
 
-	"github.com/dalibortosic00/url-shortener/internal/generators"
-	"github.com/dalibortosic00/url-shortener/internal/services"
-	"github.com/dalibortosic00/url-shortener/internal/store"
+	"github.com/dalibortosic00/url-shortener/internal/models"
+	"github.com/dalibortosic00/url-shortener/internal/request"
 )
+
+type mockLinkCreator struct {
+	createFunc func(ctx context.Context, url, ownerID string) (string, error)
+}
+
+func (m *mockLinkCreator) Create(ctx context.Context, url, ownerID string) (string, error) {
+	return m.createFunc(ctx, url, ownerID)
+}
 
 func TestShortenRequestValidate(t *testing.T) {
 	tests := []struct {
@@ -49,38 +57,90 @@ func TestShortenRequestValidate(t *testing.T) {
 }
 
 func TestShortenHandler_Shorten(t *testing.T) {
-	ms := store.NewMemoryStore()
-	gen := generators.NewRandomGenerator()
-	// Using the same store for both public and private to simplify testing
-	svc := services.NewShortenerService(ms, ms, gen)
-	h := NewShortenHandler(svc, "https://sho.rt")
-
 	tests := []struct {
 		name           string
 		requestBody    string
+		serviceMock    func() *mockLinkCreator
+		ctxModifier    func(context.Context) context.Context
 		expectedStatus int
+		expectedInBody string
 	}{
 		{
 			name:           "Success",
 			requestBody:    `{"url": "https://google.com"}`,
 			expectedStatus: http.StatusOK,
+			serviceMock: func() *mockLinkCreator {
+				return &mockLinkCreator{
+					createFunc: func(ctx context.Context, url, ownerID string) (string, error) {
+						return "abc123", nil
+					},
+				}
+			},
+			expectedInBody: "short_url",
+		},
+		{
+			name:        "Success with OwnerID",
+			requestBody: `{"url": "https://google.com"}`,
+			serviceMock: func() *mockLinkCreator {
+				return &mockLinkCreator{
+					createFunc: func(ctx context.Context, url, ownerID string) (string, error) {
+						if ownerID != "user-123" {
+							return "", errors.New("expected ownerID user-123")
+						}
+						return "abc123", nil
+					},
+				}
+			},
+			ctxModifier: func(ctx context.Context) context.Context {
+				return request.WithUserID(ctx, "user-123")
+			},
+			expectedStatus: http.StatusOK,
+			expectedInBody: "short_url",
 		},
 		{
 			name:           "Invalid JSON",
 			requestBody:    `{"url": "https://google.com"`,
 			expectedStatus: http.StatusBadRequest,
+			serviceMock: func() *mockLinkCreator {
+				return &mockLinkCreator{}
+			},
+			expectedInBody: "Invalid JSON",
 		},
 		{
 			name:           "Validation Failure",
 			requestBody:    `{"url": "not-a-url"}`,
 			expectedStatus: http.StatusBadRequest,
+			serviceMock: func() *mockLinkCreator {
+				return &mockLinkCreator{}
+			},
+			expectedInBody: "valid TLD",
+		},
+		{
+			name:           "Service Error",
+			requestBody:    `{"url": "https://google.com"}`,
+			expectedStatus: http.StatusInternalServerError,
+			serviceMock: func() *mockLinkCreator {
+				return &mockLinkCreator{
+					createFunc: func(ctx context.Context, url, ownerID string) (string, error) {
+						return "", models.ErrFailedToGenerate
+					},
+				}
+			},
+			expectedInBody: "Internal service error",
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			svc := tt.serviceMock()
+			h := NewShortenHandler(svc, "https://sho.rt")
+
 			req := httptest.NewRequest(http.MethodPost, "/shorten", strings.NewReader(tt.requestBody))
 			req.Header.Set("Content-Type", "application/json")
+
+			if tt.ctxModifier != nil {
+				req = req.WithContext(tt.ctxModifier(req.Context()))
+			}
 
 			w := httptest.NewRecorder()
 
@@ -90,14 +150,9 @@ func TestShortenHandler_Shorten(t *testing.T) {
 				t.Errorf("expected status %d; got %d", tt.expectedStatus, w.Code)
 			}
 
-			if tt.expectedStatus == http.StatusOK {
-				var res map[string]string
-				if err := json.NewDecoder(w.Body).Decode(&res); err != nil {
-					t.Fatalf("failed to decode response: %v", err)
-				}
-				if _, ok := res["short_url"]; !ok {
-					t.Error("response did not contain 'short_url'")
-				}
+			body := w.Body.String()
+			if tt.expectedInBody != "" && !strings.Contains(body, tt.expectedInBody) {
+				t.Errorf("expected response to contain %q; got %q", tt.expectedInBody, body)
 			}
 		})
 	}

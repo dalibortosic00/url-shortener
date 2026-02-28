@@ -6,7 +6,8 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/dalibortosic00/url-shortener/internal/store"
+	"github.com/dalibortosic00/url-shortener/internal/models"
+	"github.com/dalibortosic00/url-shortener/internal/request"
 	"github.com/dalibortosic00/url-shortener/internal/util"
 )
 
@@ -27,21 +28,16 @@ func getAPIKey(header http.Header) (string, error) {
 	return parts[1], nil
 }
 
+type UserProvider interface {
+	GetByAPIKey(ctx context.Context, apiKey string) (*models.User, error)
+}
+
 type AuthMiddleware struct {
-	userStore store.UserStore
+	provider UserProvider
 }
 
-func NewAuthMiddleware(userStore store.UserStore) *AuthMiddleware {
-	return &AuthMiddleware{userStore: userStore}
-}
-
-type contextKey string
-
-const userContextKey = contextKey("user")
-
-func UserIDFromContext(ctx context.Context) string {
-	id, _ := ctx.Value(userContextKey).(string)
-	return id
+func NewAuthMiddleware(provider UserProvider) *AuthMiddleware {
+	return &AuthMiddleware{provider: provider}
 }
 
 func (am *AuthMiddleware) Middleware(next http.HandlerFunc) http.HandlerFunc {
@@ -57,9 +53,9 @@ func (am *AuthMiddleware) Middleware(next http.HandlerFunc) http.HandlerFunc {
 			return
 		}
 
-		user, err := am.userStore.GetUserByAPIKey(r.Context(), auth)
+		user, err := am.provider.GetByAPIKey(r.Context(), auth)
 		if err != nil {
-			if errors.Is(err, store.ErrRecordNotFound) {
+			if errors.Is(err, models.ErrRecordNotFound) {
 				util.RespondWithError(w, http.StatusUnauthorized, "Invalid API key")
 				return
 			}
@@ -67,7 +63,7 @@ func (am *AuthMiddleware) Middleware(next http.HandlerFunc) http.HandlerFunc {
 			return
 		}
 
-		ctx := context.WithValue(r.Context(), userContextKey, user.ID)
+		ctx := request.WithUserID(r.Context(), user.ID)
 		next.ServeHTTP(w, r.WithContext(ctx))
 	})
 }

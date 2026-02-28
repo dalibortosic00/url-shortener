@@ -1,18 +1,22 @@
 package handlers
 
 import (
+	"context"
 	"encoding/json"
 	"net/http"
 
-	"github.com/dalibortosic00/url-shortener/internal/services"
 	"github.com/dalibortosic00/url-shortener/internal/util"
 )
 
-type RegisterHandler struct {
-	service *services.UserService
+type UserCreator interface {
+	Create(ctx context.Context, name string) (string, error)
 }
 
-func NewRegisterHandler(service *services.UserService) *RegisterHandler {
+type RegisterHandler struct {
+	service UserCreator
+}
+
+func NewRegisterHandler(service UserCreator) *RegisterHandler {
 	return &RegisterHandler{service: service}
 }
 

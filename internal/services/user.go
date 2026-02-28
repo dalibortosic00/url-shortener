@@ -6,16 +6,25 @@ import (
 
 	"github.com/dalibortosic00/url-shortener/internal/generators"
 	"github.com/dalibortosic00/url-shortener/internal/models"
-	"github.com/dalibortosic00/url-shortener/internal/store"
 	"github.com/dalibortosic00/url-shortener/internal/util"
 )
 
+// UserStore defines the interface for user storage, allowing retrieval of users by API key.
+type UserStore interface {
+	// Save persists a user record.
+	SaveUser(ctx context.Context, user *models.User) error
+
+	// GetUserByAPIKey retrieves a user by their API key.
+	// Returns (user, nil) if found, (nil, ErrRecordNotFound) if not found, or (nil, error) on other errors.
+	GetUserByAPIKey(ctx context.Context, apiKey string) (*models.User, error)
+}
+
 type UserService struct {
-	userStore store.UserStore
+	userStore UserStore
 	generator *generators.RandomGenerator
 }
 
-func NewUserService(userStore store.UserStore, generator *generators.RandomGenerator) *UserService {
+func NewUserService(userStore UserStore, generator *generators.RandomGenerator) *UserService {
 	return &UserService{userStore: userStore,
 		generator: generator,
 	}
