@@ -5,45 +5,50 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
-	"time"
 
-	"github.com/dalibortosic00/url-shortener/internal/generators"
-	"github.com/dalibortosic00/url-shortener/internal/models"
-	"github.com/dalibortosic00/url-shortener/internal/services"
-	"github.com/dalibortosic00/url-shortener/internal/store"
 	"github.com/go-chi/chi/v5"
 )
 
+type mockLinkResolver struct {
+	resolveFunc func(ctx context.Context, code string) (string, bool)
+}
+
+func (m *mockLinkResolver) Resolve(ctx context.Context, code string) (string, bool) {
+	return m.resolveFunc(ctx, code)
+}
+
 func TestResolveHandler_Resolve(t *testing.T) {
-	ms := store.NewMemoryStore()
-	gen := generators.NewRandomGenerator()
-	// Using the same store for both public and private to simplify testing
-	svc := services.NewShortenerService(ms, ms, gen)
-	h := NewResolveHandler(svc)
-
-	testCode := "abc123"
-	testURL := "https://google.com"
-	ms.SaveLink(context.Background(), &models.LinkRecord{
-		Code:      testCode,
-		URL:       testURL,
-		CreatedAt: time.Now(),
-	})
-
 	tests := []struct {
 		name             string
 		code             string
+		serviceMock      func() *mockLinkResolver
 		expectedStatus   int
 		expectedLocation string
 	}{
 		{
-			name:             "Successful Redirect",
-			code:             testCode,
+			name: "Successful Redirect",
+			code: "abc123",
+			serviceMock: func() *mockLinkResolver {
+				return &mockLinkResolver{
+					resolveFunc: func(ctx context.Context, code string) (string, bool) {
+						if code == "" {
+							return "", false
+						}
+						return "https://google.com", true
+					}}
+			},
 			expectedStatus:   http.StatusFound,
-			expectedLocation: testURL,
+			expectedLocation: "https://google.com",
 		},
 		{
-			name:             "Code Not Found",
-			code:             "nonexistent",
+			name: "Code Not Found",
+			code: "nonexistent",
+			serviceMock: func() *mockLinkResolver {
+				return &mockLinkResolver{
+					resolveFunc: func(ctx context.Context, code string) (string, bool) {
+						return "", false
+					}}
+			},
 			expectedStatus:   http.StatusNotFound,
 			expectedLocation: "",
 		},
@@ -51,8 +56,10 @@ func TestResolveHandler_Resolve(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			req := httptest.NewRequest(http.MethodGet, "/"+tt.code, nil)
+			svc := tt.serviceMock()
+			h := NewResolveHandler(svc)
 
+			req := httptest.NewRequest(http.MethodGet, "/"+tt.code, nil)
 			w := httptest.NewRecorder()
 
 			rctx := chi.NewRouteContext()
@@ -61,14 +68,17 @@ func TestResolveHandler_Resolve(t *testing.T) {
 
 			h.Resolve(w, req)
 
-			if w.Code != tt.expectedStatus {
-				t.Errorf("expected status %d; got %d", tt.expectedStatus, w.Code)
+			res := w.Result()
+			defer res.Body.Close()
+
+			if res.StatusCode != tt.expectedStatus {
+				t.Errorf("expected status %d, got %d", tt.expectedStatus, res.StatusCode)
 			}
 
-			if tt.expectedStatus == http.StatusFound {
-				location := w.Header().Get("Location")
+			if tt.expectedLocation != "" {
+				location := res.Header.Get("Location")
 				if location != tt.expectedLocation {
-					t.Errorf("expected redirect to %q; got %q", tt.expectedLocation, location)
+					t.Errorf("expected Location header %s, got %s", tt.expectedLocation, location)
 				}
 			}
 		})

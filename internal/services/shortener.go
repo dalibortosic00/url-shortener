@@ -5,7 +5,6 @@ import (
 	"errors"
 	"time"
 
-	"github.com/dalibortosic00/url-shortener/internal/generators"
 	"github.com/dalibortosic00/url-shortener/internal/models"
 )
 
@@ -26,14 +25,18 @@ type LinkStore interface {
 	GetCodeByURL(ctx context.Context, url string) (string, bool)
 }
 
+type CodeGenerator interface {
+	Generate(length int) (string, error)
+}
+
 type ShortenerService struct {
 	publicStore  LinkStore
 	privateStore LinkStore
-	generator    *generators.RandomGenerator
+	generator    CodeGenerator
 	maxRetries   int
 }
 
-func NewShortenerService(publicStore LinkStore, privateStore LinkStore, generator *generators.RandomGenerator) *ShortenerService {
+func NewShortenerService(publicStore LinkStore, privateStore LinkStore, generator CodeGenerator) *ShortenerService {
 	return &ShortenerService{
 		publicStore:  publicStore,
 		privateStore: privateStore,

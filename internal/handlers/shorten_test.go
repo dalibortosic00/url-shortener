@@ -3,6 +3,7 @@ package handlers
 import (
 	"context"
 	"errors"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -146,11 +147,19 @@ func TestShortenHandler_Shorten(t *testing.T) {
 
 			h.Shorten(w, req)
 
-			if w.Code != tt.expectedStatus {
-				t.Errorf("expected status %d; got %d", tt.expectedStatus, w.Code)
+			res := w.Result()
+			defer res.Body.Close()
+
+			if res.StatusCode != tt.expectedStatus {
+				t.Errorf("expected status %d; got %d", tt.expectedStatus, res.StatusCode)
 			}
 
-			body := w.Body.String()
+			bodyBytes, err := io.ReadAll(res.Body)
+			if err != nil {
+				t.Fatalf("could not read response body: %v", err)
+			}
+			body := string(bodyBytes)
+
 			if tt.expectedInBody != "" && !strings.Contains(body, tt.expectedInBody) {
 				t.Errorf("expected response to contain %q; got %q", tt.expectedInBody, body)
 			}

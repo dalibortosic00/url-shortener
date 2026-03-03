@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/dalibortosic00/url-shortener/internal/generators"
 	"github.com/dalibortosic00/url-shortener/internal/models"
 	"github.com/dalibortosic00/url-shortener/internal/util"
 )
@@ -21,10 +20,10 @@ type UserStore interface {
 
 type UserService struct {
 	userStore UserStore
-	generator *generators.RandomGenerator
+	generator CodeGenerator
 }
 
-func NewUserService(userStore UserStore, generator *generators.RandomGenerator) *UserService {
+func NewUserService(userStore UserStore, generator CodeGenerator) *UserService {
 	return &UserService{userStore: userStore,
 		generator: generator,
 	}
