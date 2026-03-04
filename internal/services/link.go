@@ -29,15 +29,15 @@ type CodeGenerator interface {
 	Generate(length int) (string, error)
 }
 
-type ShortenerService struct {
+type LinkService struct {
 	publicStore  LinkStore
 	privateStore LinkStore
 	generator    CodeGenerator
 	maxRetries   int
 }
 
-func NewShortenerService(publicStore LinkStore, privateStore LinkStore, generator CodeGenerator) *ShortenerService {
-	return &ShortenerService{
+func NewLinkService(publicStore LinkStore, privateStore LinkStore, generator CodeGenerator) *LinkService {
+	return &LinkService{
 		publicStore:  publicStore,
 		privateStore: privateStore,
 		generator:    generator,
@@ -45,7 +45,7 @@ func NewShortenerService(publicStore LinkStore, privateStore LinkStore, generato
 	}
 }
 
-func (s *ShortenerService) Create(ctx context.Context, url string, ownerID string) (string, error) {
+func (s *LinkService) Create(ctx context.Context, url string, ownerID string) (string, error) {
 	store := s.privateStore
 	if ownerID == "" {
 		store = s.publicStore
@@ -83,7 +83,7 @@ func (s *ShortenerService) Create(ctx context.Context, url string, ownerID strin
 	return "", models.ErrFailedToGenerate
 }
 
-func (s *ShortenerService) Resolve(ctx context.Context, code string) (string, bool) {
+func (s *LinkService) Resolve(ctx context.Context, code string) (string, bool) {
 	if record, ok := s.publicStore.LoadLink(ctx, code); ok {
 		return record.URL, true
 	}

@@ -6,12 +6,8 @@ import (
 	"errors"
 
 	"github.com/dalibortosic00/url-shortener/internal/models"
-	"github.com/dalibortosic00/url-shortener/internal/services"
 	"github.com/lib/pq"
 )
-
-var _ services.LinkStore = (*DatabaseStore)(nil)
-var _ services.UserStore = (*DatabaseStore)(nil)
 
 type DatabaseStore struct {
 	db *sql.DB

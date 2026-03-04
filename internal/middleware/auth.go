@@ -40,7 +40,7 @@ func NewAuthMiddleware(provider UserProvider) *AuthMiddleware {
 	return &AuthMiddleware{provider: provider}
 }
 
-func (am *AuthMiddleware) Middleware(next http.HandlerFunc) http.HandlerFunc {
+func (am *AuthMiddleware) Middleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		auth, err := getAPIKey(r.Header)
 		if err != nil {

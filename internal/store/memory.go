@@ -5,10 +5,7 @@ import (
 	"sync"
 
 	"github.com/dalibortosic00/url-shortener/internal/models"
-	"github.com/dalibortosic00/url-shortener/internal/services"
 )
-
-var _ services.LinkStore = (*MemoryStore)(nil)
 
 type MemoryStore struct {
 	mux       sync.RWMutex
