@@ -2,6 +2,7 @@ package store
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"sync"
 	"testing"
@@ -11,10 +12,9 @@ import (
 )
 
 func TestMemoryStore(t *testing.T) {
-	ctx := context.Background()
-	s := NewMemoryStore()
-
 	t.Run("Save and Load", func(t *testing.T) {
+		s := NewMemoryStore()
+		ctx := context.Background()
 		code, url := "abc123", "https://example.com"
 
 		shortenedURL := &models.LinkRecord{
@@ -38,20 +38,42 @@ func TestMemoryStore(t *testing.T) {
 		}
 	})
 
+	t.Run("Load Non-Existent Code", func(t *testing.T) {
+		s := NewMemoryStore()
+		ctx := context.Background()
+
+		if _, ok := s.LoadLink(ctx, "nonexistent"); ok {
+			t.Fatal("expected Load() to return false for non-existent code")
+		}
+	})
+
+	t.Run("GetCodeByURL Non-Existent URL", func(t *testing.T) {
+		s := NewMemoryStore()
+		ctx := context.Background()
+
+		if _, ok := s.GetCodeByURL(ctx, "https://nonexistent.com"); ok {
+			t.Fatal("expected GetCodeByURL() to return false for non-existent URL")
+		}
+	})
+
 	t.Run("Collision Error", func(t *testing.T) {
+		s := NewMemoryStore()
+		ctx := context.Background()
 		code := "collision"
-		s.SaveLink(ctx, &models.LinkRecord{
+
+		if err := s.SaveLink(ctx, &models.LinkRecord{
 			Code:      code,
 			URL:       "https://example.com",
 			CreatedAt: time.Now(),
-		})
+		}); err != nil {
+			t.Fatalf("failed to save: %v", err)
+		}
 
-		err := s.SaveLink(ctx, &models.LinkRecord{
+		if err := s.SaveLink(ctx, &models.LinkRecord{
 			Code:      code,
 			URL:       "https://another.com",
 			CreatedAt: time.Now(),
-		})
-		if err != models.ErrCollision {
+		}); !errors.Is(err, models.ErrCollision) {
 			t.Fatalf("expected ErrCollision, got %v", err)
 		}
 	})
@@ -60,12 +82,12 @@ func TestMemoryStore(t *testing.T) {
 func TestMemoryStore_Concurrent(t *testing.T) {
 	s := NewMemoryStore()
 	ctx := context.Background()
-	wg := sync.WaitGroup{}
+	var wg sync.WaitGroup
 
 	iterations := 1000
 
 	for i := range iterations {
-		wg.Add(1)
+		wg.Add(3)
 		go func(n int) {
 			defer wg.Done()
 			code := fmt.Sprintf("code-%d", n)
@@ -76,14 +98,17 @@ func TestMemoryStore_Concurrent(t *testing.T) {
 				CreatedAt: time.Now(),
 			})
 		}(i)
-	}
 
-	for i := range iterations {
-		wg.Add(1)
 		go func(n int) {
 			defer wg.Done()
 			code := fmt.Sprintf("code-%d", n)
 			_, _ = s.LoadLink(ctx, code)
+		}(i)
+
+		go func(n int) {
+			defer wg.Done()
+			url := fmt.Sprintf("url-%d", n)
+			_, _ = s.GetCodeByURL(ctx, url)
 		}(i)
 	}
 
