@@ -8,9 +8,10 @@ import (
 )
 
 type Config struct {
-	Port        string
-	BaseURL     string
-	DatabaseURL string
+	Port            string
+	BaseURL         string
+	DatabaseURL     string
+	TestDatabaseURL string
 }
 
 func Load() *Config {
@@ -31,9 +32,12 @@ func Load() *Config {
 		log.Fatal("DB_URL environment variable is required")
 	}
 
+	testDatabaseURL := os.Getenv("TEST_DB_URL")
+
 	return &Config{
-		Port:        port,
-		BaseURL:     baseURL,
-		DatabaseURL: databaseURL,
+		Port:            port,
+		BaseURL:         baseURL,
+		DatabaseURL:     databaseURL,
+		TestDatabaseURL: testDatabaseURL,
 	}
 }

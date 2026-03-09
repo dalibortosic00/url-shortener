@@ -34,6 +34,11 @@ test:
 	@echo "Running tests..."
 	@go test -v ./...
 
+## test/e2e: Run e2e tests
+test/e2e:
+	@echo "Running e2e tests..."
+	@go test -v -tags e2e ./tests/...
+
 ## test/race: Run tests with the race detector enabled
 test/race:
 	@echo "Checking for data races..."
@@ -52,12 +57,16 @@ clean:
 	@rm -rf $(BUILD_DIR)
 	@rm -f coverage.out
 
+DB_TARGETS := $(DB_URL) $(TEST_DB_URL)
+
 ## db/migrate: Run database migrations
 db/migrate:
 	@echo "Running database migrations..."
 	@for migration in migrations/*.up.sql; do \
 		echo "Running $$migration..."; \
-		psql $(DB_URL) -f $$migration; \
+		for url in $(DB_TARGETS); do \
+			psql $$url -f $$migration; \
+		done \
 	done
 	@echo "Migrations complete!"
 
@@ -66,7 +75,9 @@ db/rollback:
 	@echo "Rolling back database migrations..."
 	@for migration in $$(ls -r migrations/*.down.sql); do \
 		echo "Rolling back $$migration..."; \
-		psql $(DB_URL) -f $$migration; \
+		for url in $(DB_TARGETS); do \
+			psql $$url -f $$migration; \
+		done \
 	done
 	@echo "Rollback complete!"
 
