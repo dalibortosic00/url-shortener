@@ -7,35 +7,23 @@ import (
 	"testing"
 
 	"github.com/go-chi/chi/v5"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
 )
-
-type mockLinkResolver struct {
-	resolveFunc func(ctx context.Context, code string) (string, bool)
-}
-
-func (m *mockLinkResolver) Resolve(ctx context.Context, code string) (string, bool) {
-	return m.resolveFunc(ctx, code)
-}
 
 func TestResolveHandler_Resolve(t *testing.T) {
 	tests := []struct {
 		name             string
 		code             string
-		serviceMock      func() *mockLinkResolver
+		setup            func(svc *MockLinkResolver)
 		expectedStatus   int
 		expectedLocation string
 	}{
 		{
 			name: "Successful Redirect",
 			code: "abc123",
-			serviceMock: func() *mockLinkResolver {
-				return &mockLinkResolver{
-					resolveFunc: func(ctx context.Context, code string) (string, bool) {
-						if code == "" {
-							return "", false
-						}
-						return "https://google.com", true
-					}}
+			setup: func(svc *MockLinkResolver) {
+				svc.EXPECT().Resolve(mock.Anything, "abc123").Return("https://google.com", true)
 			},
 			expectedStatus:   http.StatusFound,
 			expectedLocation: "https://google.com",
@@ -43,11 +31,8 @@ func TestResolveHandler_Resolve(t *testing.T) {
 		{
 			name: "Code Not Found",
 			code: "nonexistent",
-			serviceMock: func() *mockLinkResolver {
-				return &mockLinkResolver{
-					resolveFunc: func(ctx context.Context, code string) (string, bool) {
-						return "", false
-					}}
+			setup: func(svc *MockLinkResolver) {
+				svc.EXPECT().Resolve(mock.Anything, "nonexistent").Return("", false)
 			},
 			expectedStatus:   http.StatusNotFound,
 			expectedLocation: "",
@@ -56,7 +41,9 @@ func TestResolveHandler_Resolve(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			svc := tt.serviceMock()
+			svc := NewMockLinkResolver(t)
+			tt.setup(svc)
+
 			h := NewResolveHandler(svc)
 
 			req := httptest.NewRequest(http.MethodGet, "/"+tt.code, nil)
@@ -71,15 +58,10 @@ func TestResolveHandler_Resolve(t *testing.T) {
 			res := w.Result()
 			defer res.Body.Close()
 
-			if res.StatusCode != tt.expectedStatus {
-				t.Errorf("expected status %d, got %d", tt.expectedStatus, res.StatusCode)
-			}
+			assert.Equal(t, tt.expectedStatus, res.StatusCode)
 
 			if tt.expectedLocation != "" {
-				location := res.Header.Get("Location")
-				if location != tt.expectedLocation {
-					t.Errorf("expected Location header %s, got %s", tt.expectedLocation, location)
-				}
+				assert.Equal(t, tt.expectedLocation, res.Header.Get("Location"))
 			}
 		})
 	}
