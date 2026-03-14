@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"io"
 	"log"
 	"net/http"
 	"os"
@@ -20,11 +21,21 @@ import (
 )
 
 type App struct {
-	server *http.Server
-	db     *sql.DB
+	server  *http.Server
+	db      *sql.DB
+	logFile *os.File
 }
 
 func New(cfg *config.Config) (*App, error) {
+	logFile, err := os.OpenFile("app.log", os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0644)
+	if err != nil {
+		return nil, fmt.Errorf("open log file: %w", err)
+	}
+
+	multi := io.MultiWriter(os.Stdout, logFile)
+	logger := log.New(multi, "", log.LstdFlags)
+	log.SetOutput(multi)
+
 	db, err := store.InitDB(cfg.DatabaseURL)
 	if err != nil {
 		return nil, fmt.Errorf("init db: %w", err)
@@ -39,15 +50,18 @@ func New(cfg *config.Config) (*App, error) {
 	linkService := services.NewLinkService(publicStore, privateStore, randomGenerator)
 
 	authMiddleware := middleware.NewAuthMiddleware(userService)
-	srv := server.New(cfg, userService, linkService, authMiddleware)
+	srv := server.New(cfg, userService, linkService, authMiddleware, logger)
 
-	return &App{server: srv, db: db}, nil
+	return &App{server: srv, db: db, logFile: logFile}, nil
 }
 
 func (a *App) Run() {
 	defer func() {
 		if err := a.db.Close(); err != nil {
 			log.Printf("db close: %v", err)
+		}
+		if err := a.logFile.Close(); err != nil {
+			log.Printf("log file close: %v", err)
 		}
 	}()
 

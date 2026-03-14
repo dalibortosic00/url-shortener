@@ -2,6 +2,7 @@ package server
 
 import (
 	"context"
+	"log"
 	"net/http"
 	"time"
 
@@ -28,9 +29,10 @@ func New(
 	userService UserService,
 	linkService LinkService,
 	auth *middleware.AuthMiddleware,
+	logger *log.Logger,
 ) *http.Server {
 	r := chi.NewRouter()
-	registerMiddleware(r)
+	registerMiddleware(r, logger)
 	registerRoutes(r, cfg, userService, linkService, auth)
 
 	return &http.Server{
@@ -42,9 +44,8 @@ func New(
 	}
 }
 
-func registerMiddleware(r *chi.Mux) {
+func registerMiddleware(r *chi.Mux, logger *log.Logger) {
 	r.Use(chiMiddleware.RequestID)
-	r.Use(chiMiddleware.Logger)
 	r.Use(chiMiddleware.Recoverer)
 	r.Use(cors.Handler(cors.Options{
 		AllowedOrigins: []string{"*"},
@@ -52,6 +53,13 @@ func registerMiddleware(r *chi.Mux) {
 		AllowedHeaders: []string{"Content-Type", "Authorization"},
 		MaxAge:         300,
 	}))
+
+	if logger != nil {
+		r.Use(chiMiddleware.RequestLogger(&chiMiddleware.DefaultLogFormatter{
+			Logger:  logger,
+			NoColor: true,
+		}))
+	}
 }
 
 func registerRoutes(

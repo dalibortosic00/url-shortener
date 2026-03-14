@@ -30,7 +30,7 @@ func NewTestServer(t *testing.T) *httptest.Server {
 	linkService := services.NewLinkService(publicStore, privateStore, gen)
 	authMiddleware := middleware.NewAuthMiddleware(userService)
 
-	srv := server.New(cfg, userService, linkService, authMiddleware)
+	srv := server.New(cfg, userService, linkService, authMiddleware, nil) // No logger for tests
 
 	ts := httptest.NewServer(srv.Handler)
 	t.Cleanup(func() {
