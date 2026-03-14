@@ -111,6 +111,58 @@ func TestLinkService_Create(t *testing.T) {
 	}
 }
 
+func TestLinkService_CreateCustom(t *testing.T) {
+	testUrl := "http://example.com"
+	customCode := "mylink"
+	errUnexpected := errors.New("unexpected error")
+
+	tests := []struct {
+		name        string
+		url         string
+		customCode  string
+		ownerID     string
+		setup       func(r *MockLinkStore)
+		expectedErr error
+	}{
+		{
+			name:       "Successful Custom Code Creation",
+			url:        testUrl,
+			customCode: customCode,
+			ownerID:    "user123",
+			setup: func(r *MockLinkStore) {
+				r.EXPECT().SaveLink(mock.Anything, mock.AnythingOfType("*models.LinkRecord")).Return(nil)
+			},
+		},
+		{
+			name: "Store Error",
+			setup: func(r *MockLinkStore) {
+				r.EXPECT().SaveLink(mock.Anything, mock.AnythingOfType("*models.LinkRecord")).Return(errUnexpected)
+			},
+			expectedErr: errUnexpected,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			rs := NewMockLinkStore(t)
+
+			if tt.setup != nil {
+				tt.setup(rs)
+			}
+
+			svc := NewLinkService(nil, rs, nil)
+			code, err := svc.CreateCustom(context.Background(), tt.url, tt.customCode, tt.ownerID)
+
+			if tt.expectedErr != nil {
+				assert.ErrorIs(t, err, tt.expectedErr)
+			} else {
+				assert.NoError(t, err)
+			}
+			assert.Equal(t, tt.customCode, code)
+		})
+	}
+}
+
 func TestLinkService_Resolve(t *testing.T) {
 	tests := []struct {
 		name          string

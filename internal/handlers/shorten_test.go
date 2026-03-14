@@ -9,6 +9,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/dalibortosic00/url-shortener/internal/models"
 	"github.com/dalibortosic00/url-shortener/internal/request"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
@@ -17,28 +18,34 @@ import (
 func TestShortenRequestValidate(t *testing.T) {
 	tests := []struct {
 		name          string
-		input         string
+		url           string
+		customCode    string
 		forbiddenHost string
 		wantErr       bool
 		wantMsg       string
 	}{
-		{"Valid URL", "google.com", "localhost", false, ""},
-		{"Empty URL", "", "localhost", true, errEmptyURL},
-		{"Invalid Format", "google.com:invalid-port", "localhost", true, errInvalidFormat},
-		{"Missing Host", "https:///path", "localhost", true, errInvalidDomain},
-		{"Missing TLD", "http://mysite", "localhost", true, errInvalidTLD},
-		{"Forbidden Host", "http://localhost/test", "localhost", true, errForbiddenDomain},
+		{"Valid URL", "google.com", "", "localhost", false, ""},
+		{"Empty URL", "", "", "localhost", true, errEmptyURL},
+		{"Invalid Format", "google.com:invalid-port", "", "localhost", true, errInvalidFormat},
+		{"Missing Host", "https:///path", "", "localhost", true, errInvalidDomain},
+		{"Missing TLD", "http://mysite", "", "localhost", true, errInvalidTLD},
+		{"Forbidden Host", "http://localhost/test", "", "localhost", true, errForbiddenDomain},
+
+		{"Custom Code Too Short", "google.com", "ab", "localhost", true, "Custom code must be at least 3 characters"},
+		{"Custom Code Too Long", "google.com", "thisIsWayTooLong", "localhost", true, "Custom code cannot exceed 12 characters"},
+		{"Custom Code Invalid Chars", "google.com", "invalid code", "localhost", true, "Custom code must only contain letters and numbers"},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			req := &shortenRequest{URL: tt.input}
+			req := &shortenRequest{
+				URL:        tt.url,
+				CustomCode: tt.customCode,
+			}
+
 			msg, ok := req.validate(tt.forbiddenHost)
 
-			t.Logf("Input: %s | Resulting URL: %s | Msg: %s", tt.input, req.URL, msg)
-
 			assert.Equal(t, !tt.wantErr, ok)
-
 			if tt.wantErr {
 				assert.Equal(t, tt.wantMsg, msg)
 			}
@@ -75,6 +82,37 @@ func TestShortenHandler_Shorten(t *testing.T) {
 			},
 			expectedStatus: http.StatusOK,
 			expectedInBody: "short_url",
+		},
+		{
+			name:        "Success with Custom Code",
+			requestBody: `{"url": "https://google.com", "custom_code": "mylink"}`,
+			setup: func(svc *MockLinkCreator) {
+				svc.EXPECT().CreateCustom(mock.Anything, "https://google.com", "mylink", "user-123").Return("abc123", nil)
+			},
+			ctxModifier: func(ctx context.Context) context.Context {
+				return request.WithUserID(ctx, "user-123")
+			},
+			expectedStatus: http.StatusOK,
+			expectedInBody: "short_url",
+		},
+		{
+			name:           "Custom Code Forbidden for Unregistered User",
+			requestBody:    `{"url": "https://google.com", "custom_code": "mylink"}`,
+			setup:          func(svc *MockLinkCreator) {},
+			expectedStatus: http.StatusForbidden,
+			expectedInBody: "registered users",
+		},
+		{
+			name:        "Custom Code Collision",
+			requestBody: `{"url": "https://google.com", "custom_code": "mylink"}`,
+			setup: func(svc *MockLinkCreator) {
+				svc.EXPECT().CreateCustom(mock.Anything, "https://google.com", "mylink", "user-123").Return("", models.ErrCollision)
+			},
+			ctxModifier: func(ctx context.Context) context.Context {
+				return request.WithUserID(ctx, "user-123")
+			},
+			expectedStatus: http.StatusConflict,
+			expectedInBody: "already taken",
 		},
 		{
 			name:           "Invalid JSON",

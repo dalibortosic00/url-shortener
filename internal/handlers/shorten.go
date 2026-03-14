@@ -3,10 +3,13 @@ package handlers
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"net/url"
 	"strings"
+	"unicode"
 
+	"github.com/dalibortosic00/url-shortener/internal/models"
 	"github.com/dalibortosic00/url-shortener/internal/request"
 	"github.com/dalibortosic00/url-shortener/internal/util"
 )
@@ -19,8 +22,18 @@ const (
 	errForbiddenDomain = "Cannot shorten URLs from this domain"
 )
 
+func isAlphanumeric(s string) bool {
+	for _, r := range s {
+		if !unicode.IsLetter(r) && !unicode.IsNumber(r) {
+			return false
+		}
+	}
+	return true
+}
+
 type LinkCreator interface {
 	Create(ctx context.Context, url string, ownerID string) (string, error)
+	CreateCustom(ctx context.Context, url string, customCode string, ownerID string) (string, error)
 }
 
 type ShortenHandler struct {
@@ -39,7 +52,8 @@ func NewShortenHandler(service LinkCreator, baseURL string) *ShortenHandler {
 }
 
 type shortenRequest struct {
-	URL string `json:"url"`
+	URL        string `json:"url"`
+	CustomCode string `json:"custom_code,omitempty"`
 }
 
 func (r *shortenRequest) validate(forbiddenHost string) (string, bool) {
@@ -74,6 +88,20 @@ func (r *shortenRequest) validate(forbiddenHost string) (string, bool) {
 	}
 
 	r.URL = input
+
+	if r.CustomCode != "" {
+		length := len(r.CustomCode)
+		if length < 3 {
+			return "Custom code must be at least 3 characters", false
+		}
+		if length > 12 {
+			return "Custom code cannot exceed 12 characters", false
+		}
+		if !isAlphanumeric(r.CustomCode) {
+			return "Custom code must only contain letters and numbers", false
+		}
+	}
+
 	return "", true
 }
 
@@ -93,8 +121,24 @@ func (h *ShortenHandler) Shorten(w http.ResponseWriter, r *http.Request) {
 	}
 
 	userID := request.UserID(r.Context())
-	code, err := h.service.Create(r.Context(), req.URL, userID)
+	var code string
+	var err error
+
+	if req.CustomCode != "" {
+		if userID == "" {
+			util.RespondWithError(w, http.StatusForbidden, "Custom codes are only available for registered users")
+			return
+		}
+		code, err = h.service.CreateCustom(r.Context(), req.URL, req.CustomCode, userID)
+	} else {
+		code, err = h.service.Create(r.Context(), req.URL, userID)
+	}
+
 	if err != nil {
+		if errors.Is(err, models.ErrCollision) {
+			util.RespondWithError(w, http.StatusConflict, "This custom code is already taken")
+			return
+		}
 		util.RespondWithError(w, http.StatusInternalServerError, "Internal service error")
 		return
 	}

@@ -83,6 +83,21 @@ func (s *LinkService) Create(ctx context.Context, url string, ownerID string) (s
 	return "", models.ErrFailedToGenerate
 }
 
+func (s *LinkService) CreateCustom(ctx context.Context, url string, customCode string, ownerID string) (string, error) {
+	record := &models.LinkRecord{
+		Code:      customCode,
+		URL:       url,
+		OwnerID:   ownerID,
+		CreatedAt: time.Now(),
+	}
+
+	if err := s.privateStore.SaveLink(ctx, record); err != nil {
+		return "", err
+	}
+
+	return customCode, nil
+}
+
 func (s *LinkService) Resolve(ctx context.Context, code string) (string, bool) {
 	if record, ok := s.publicStore.LoadLink(ctx, code); ok {
 		return record.URL, true

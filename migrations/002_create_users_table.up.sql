@@ -1,6 +1,6 @@
 -- Create users table for storing user accounts
 CREATE TABLE IF NOT EXISTS users (
-    id VARCHAR(255) PRIMARY KEY,
+    id UUID PRIMARY KEY,
     name VARCHAR(255) NOT NULL,
     api_key VARCHAR(255) NOT NULL UNIQUE
 );

@@ -1,7 +1,6 @@
 package helpers
 
 import (
-	"database/sql"
 	"net/http/httptest"
 	"testing"
 
@@ -34,19 +33,10 @@ func NewTestServer(t *testing.T) *httptest.Server {
 	srv := server.New(cfg, userService, linkService, authMiddleware)
 
 	ts := httptest.NewServer(srv.Handler)
-	t.Cleanup(ts.Close)
+	t.Cleanup(func() {
+		Reset(t, db)
+		ts.Close()
+	})
 
 	return ts
-}
-
-func NewTestDB(t *testing.T, connStr string) *sql.DB {
-	t.Helper()
-
-	db, err := store.InitDB(connStr)
-	if err != nil {
-		t.Fatalf("init db: %v", err)
-	}
-	t.Cleanup(func() { db.Close() })
-
-	return db
 }

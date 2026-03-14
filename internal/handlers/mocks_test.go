@@ -294,3 +294,81 @@ func (_c *MockLinkCreator_Create_Call) RunAndReturn(run func(ctx context.Context
 	_c.Call.Return(run)
 	return _c
 }
+
+// CreateCustom provides a mock function for the type MockLinkCreator
+func (_mock *MockLinkCreator) CreateCustom(ctx context.Context, url string, customCode string, ownerID string) (string, error) {
+	ret := _mock.Called(ctx, url, customCode, ownerID)
+
+	if len(ret) == 0 {
+		panic("no return value specified for CreateCustom")
+	}
+
+	var r0 string
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, string, string) (string, error)); ok {
+		return returnFunc(ctx, url, customCode, ownerID)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, string, string) string); ok {
+		r0 = returnFunc(ctx, url, customCode, ownerID)
+	} else {
+		r0 = ret.Get(0).(string)
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, string, string, string) error); ok {
+		r1 = returnFunc(ctx, url, customCode, ownerID)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// MockLinkCreator_CreateCustom_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'CreateCustom'
+type MockLinkCreator_CreateCustom_Call struct {
+	*mock.Call
+}
+
+// CreateCustom is a helper method to define mock.On call
+//   - ctx context.Context
+//   - url string
+//   - customCode string
+//   - ownerID string
+func (_e *MockLinkCreator_Expecter) CreateCustom(ctx interface{}, url interface{}, customCode interface{}, ownerID interface{}) *MockLinkCreator_CreateCustom_Call {
+	return &MockLinkCreator_CreateCustom_Call{Call: _e.mock.On("CreateCustom", ctx, url, customCode, ownerID)}
+}
+
+func (_c *MockLinkCreator_CreateCustom_Call) Run(run func(ctx context.Context, url string, customCode string, ownerID string)) *MockLinkCreator_CreateCustom_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 string
+		if args[1] != nil {
+			arg1 = args[1].(string)
+		}
+		var arg2 string
+		if args[2] != nil {
+			arg2 = args[2].(string)
+		}
+		var arg3 string
+		if args[3] != nil {
+			arg3 = args[3].(string)
+		}
+		run(
+			arg0,
+			arg1,
+			arg2,
+			arg3,
+		)
+	})
+	return _c
+}
+
+func (_c *MockLinkCreator_CreateCustom_Call) Return(s string, err error) *MockLinkCreator_CreateCustom_Call {
+	_c.Call.Return(s, err)
+	return _c
+}
+
+func (_c *MockLinkCreator_CreateCustom_Call) RunAndReturn(run func(ctx context.Context, url string, customCode string, ownerID string) (string, error)) *MockLinkCreator_CreateCustom_Call {
+	_c.Call.Return(run)
+	return _c
+}
