@@ -9,8 +9,6 @@ import (
 )
 
 // LinkStore defines the interface for URL shortener storage implementations.
-// Different implementations can have different deduplication behaviors:
-// - MemoryStore: deduplicates URLs (GetByURL returns existing codes)
 // - DatabaseStore: allows multiple codes per URL for authorized users (GetByURL returns false)
 type LinkStore interface {
 	// SaveLink persists a link record. Returns ErrCollision if code already exists.
@@ -21,7 +19,6 @@ type LinkStore interface {
 
 	// GetCodeByURL checks if a URL already has a code (for deduplication).
 	// Returns (code, true) if found, ("", false) otherwise.
-	// Database implementations should return ("", false) to allow multiple codes per URL.
 	GetCodeByURL(ctx context.Context, url string) (string, bool)
 }
 
@@ -30,26 +27,22 @@ type CodeGenerator interface {
 }
 
 type LinkService struct {
-	publicStore  LinkStore
-	privateStore LinkStore
-	generator    CodeGenerator
-	maxRetries   int
+	store      LinkStore
+	generator  CodeGenerator
+	maxRetries int
 }
 
-func NewLinkService(publicStore LinkStore, privateStore LinkStore, generator CodeGenerator) *LinkService {
+func NewLinkService(store LinkStore, generator CodeGenerator) *LinkService {
 	return &LinkService{
-		publicStore:  publicStore,
-		privateStore: privateStore,
-		generator:    generator,
-		maxRetries:   3,
+		store:      store,
+		generator:  generator,
+		maxRetries: 3,
 	}
 }
 
-func (s *LinkService) Create(ctx context.Context, url string, ownerID string) (string, error) {
-	store := s.privateStore
-	if ownerID == "" {
-		store = s.publicStore
-		if existingCode, exists := store.GetCodeByURL(ctx, url); exists {
+func (s *LinkService) Create(ctx context.Context, url string, ownerID *string) (string, error) {
+	if ownerID == nil {
+		if existingCode, exists := s.store.GetCodeByURL(ctx, url); exists {
 			return existingCode, nil
 		}
 	}
@@ -73,7 +66,7 @@ func (s *LinkService) Create(ctx context.Context, url string, ownerID string) (s
 			CreatedAt: time.Now(),
 		}
 
-		if err := store.SaveLink(ctx, record); err == nil {
+		if err := s.store.SaveLink(ctx, record); err == nil {
 			return code, nil
 		} else if !errors.Is(err, models.ErrCollision) {
 			return "", err
@@ -83,7 +76,7 @@ func (s *LinkService) Create(ctx context.Context, url string, ownerID string) (s
 	return "", models.ErrFailedToGenerate
 }
 
-func (s *LinkService) CreateCustom(ctx context.Context, url string, customCode string, ownerID string) (string, error) {
+func (s *LinkService) CreateCustom(ctx context.Context, url string, customCode string, ownerID *string) (string, error) {
 	record := &models.LinkRecord{
 		Code:      customCode,
 		URL:       url,
@@ -91,7 +84,7 @@ func (s *LinkService) CreateCustom(ctx context.Context, url string, customCode s
 		CreatedAt: time.Now(),
 	}
 
-	if err := s.privateStore.SaveLink(ctx, record); err != nil {
+	if err := s.store.SaveLink(ctx, record); err != nil {
 		return "", err
 	}
 
@@ -99,11 +92,7 @@ func (s *LinkService) CreateCustom(ctx context.Context, url string, customCode s
 }
 
 func (s *LinkService) Resolve(ctx context.Context, code string) (string, bool) {
-	if record, ok := s.publicStore.LoadLink(ctx, code); ok {
-		return record.URL, true
-	}
-
-	if record, ok := s.privateStore.LoadLink(ctx, code); ok {
+	if record, ok := s.store.LoadLink(ctx, code); ok {
 		return record.URL, true
 	}
 

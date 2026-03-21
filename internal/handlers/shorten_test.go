@@ -15,6 +15,10 @@ import (
 	"github.com/stretchr/testify/mock"
 )
 
+func ptr[T any](v T) *T {
+	return &v
+}
+
 func TestShortenRequestValidate(t *testing.T) {
 	tests := []struct {
 		name          string
@@ -66,7 +70,7 @@ func TestShortenHandler_Shorten(t *testing.T) {
 			name:        "Success",
 			requestBody: `{"url": "https://google.com"}`,
 			setup: func(svc *MockLinkCreator) {
-				svc.EXPECT().Create(mock.Anything, "https://google.com", "").Return("abc123", nil)
+				svc.EXPECT().Create(mock.Anything, "https://google.com", (*string)(nil)).Return("abc123", nil)
 			},
 			expectedStatus: http.StatusOK,
 			expectedInBody: "short_url",
@@ -75,7 +79,7 @@ func TestShortenHandler_Shorten(t *testing.T) {
 			name:        "Success with OwnerID",
 			requestBody: `{"url": "https://google.com"}`,
 			setup: func(svc *MockLinkCreator) {
-				svc.EXPECT().Create(mock.Anything, "https://google.com", "user-123").Return("abc123", nil)
+				svc.EXPECT().Create(mock.Anything, "https://google.com", ptr("user-123")).Return("abc123", nil)
 			},
 			ctxModifier: func(ctx context.Context) context.Context {
 				return request.WithUserID(ctx, "user-123")
@@ -87,7 +91,7 @@ func TestShortenHandler_Shorten(t *testing.T) {
 			name:        "Success with Custom Code",
 			requestBody: `{"url": "https://google.com", "custom_code": "mylink"}`,
 			setup: func(svc *MockLinkCreator) {
-				svc.EXPECT().CreateCustom(mock.Anything, "https://google.com", "mylink", "user-123").Return("abc123", nil)
+				svc.EXPECT().CreateCustom(mock.Anything, "https://google.com", "mylink", ptr("user-123")).Return("abc123", nil)
 			},
 			ctxModifier: func(ctx context.Context) context.Context {
 				return request.WithUserID(ctx, "user-123")
@@ -106,7 +110,7 @@ func TestShortenHandler_Shorten(t *testing.T) {
 			name:        "Custom Code Collision",
 			requestBody: `{"url": "https://google.com", "custom_code": "mylink"}`,
 			setup: func(svc *MockLinkCreator) {
-				svc.EXPECT().CreateCustom(mock.Anything, "https://google.com", "mylink", "user-123").Return("", models.ErrCollision)
+				svc.EXPECT().CreateCustom(mock.Anything, "https://google.com", "mylink", ptr("user-123")).Return("", models.ErrCollision)
 			},
 			ctxModifier: func(ctx context.Context) context.Context {
 				return request.WithUserID(ctx, "user-123")
@@ -132,7 +136,7 @@ func TestShortenHandler_Shorten(t *testing.T) {
 			name:        "Service Error",
 			requestBody: `{"url": "https://google.com"}`,
 			setup: func(svc *MockLinkCreator) {
-				svc.EXPECT().Create(mock.Anything, "https://google.com", "").Return("", errors.New("error creating short code"))
+				svc.EXPECT().Create(mock.Anything, "https://google.com", (*string)(nil)).Return("", errors.New("error creating short code"))
 			},
 			expectedStatus: http.StatusInternalServerError,
 			expectedInBody: "Internal service error",

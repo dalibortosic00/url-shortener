@@ -52,9 +52,18 @@ func (s *DatabaseStore) LoadLink(ctx context.Context, code string) (*models.Link
 }
 
 func (s *DatabaseStore) GetCodeByURL(ctx context.Context, url string) (string, bool) {
-	// Database store does NOT deduplicate - always return false
-	// This allows authorized users to create multiple codes for the same URL
-	return "", false
+	query := `SELECT code FROM links WHERE url = $1 AND owner_id IS NULL LIMIT 1`
+
+	var code string
+	err := s.db.QueryRowContext(ctx, query, url).Scan(&code)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return "", false
+		}
+		return "", false
+	}
+
+	return code, true
 }
 
 func (s *DatabaseStore) SaveUser(ctx context.Context, user *models.User) error {

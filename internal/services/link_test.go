@@ -10,6 +10,10 @@ import (
 	"github.com/stretchr/testify/mock"
 )
 
+func ptr[T any](v T) *T {
+	return &v
+}
+
 func TestLinkService_Create(t *testing.T) {
 	testUrl := "http://example.com"
 	errUnexpected := errors.New("unexpected error")
@@ -17,72 +21,66 @@ func TestLinkService_Create(t *testing.T) {
 	tests := []struct {
 		name         string
 		url          string
-		ownerID      string
-		setup        func(p *MockLinkStore, r *MockLinkStore, g *MockCodeGenerator)
+		ownerID      *string
+		setup        func(s *MockLinkStore, g *MockCodeGenerator)
 		expectedCode string
 		expectedErr  error
 	}{
 		{
-			name: "Successful - Public (New URL)",
-			setup: func(p *MockLinkStore, _ *MockLinkStore, g *MockCodeGenerator) {
-				p.EXPECT().GetCodeByURL(mock.Anything, testUrl).Return("", false)
-				g.EXPECT().Generate(6).Return("abc123", nil)
-				p.EXPECT().SaveLink(mock.Anything, mock.AnythingOfType("*models.LinkRecord")).Return(nil)
-			},
-			expectedCode: "abc123",
-		},
-		{
-			name:    "Successful - Private",
-			ownerID: "user123",
-			setup: func(_ *MockLinkStore, r *MockLinkStore, g *MockCodeGenerator) {
+			name:    "Successful",
+			ownerID: ptr("user123"),
+			setup: func(s *MockLinkStore, g *MockCodeGenerator) {
 				g.EXPECT().Generate(6).Return("def456", nil)
-				r.EXPECT().SaveLink(mock.Anything, mock.AnythingOfType("*models.LinkRecord")).Return(nil)
+				s.EXPECT().SaveLink(mock.Anything, mock.AnythingOfType("*models.LinkRecord")).Return(nil)
 			},
 			expectedCode: "def456",
 		},
 		{
-			name: "Public URL Exists (Deduplication)",
-			setup: func(p *MockLinkStore, _ *MockLinkStore, _ *MockCodeGenerator) {
-				p.EXPECT().GetCodeByURL(mock.Anything, testUrl).Return("existing123", true)
+			name:    "Public URL Exists (Deduplication)",
+			ownerID: nil,
+			setup: func(s *MockLinkStore, _ *MockCodeGenerator) {
+				s.EXPECT().GetCodeByURL(mock.Anything, testUrl).Return("existing123", true)
 			},
 			expectedCode: "existing123",
 		},
 		{
-			name: "Public Collision (Exhaust Retries)",
-			setup: func(p *MockLinkStore, _ *MockLinkStore, g *MockCodeGenerator) {
-				p.EXPECT().GetCodeByURL(mock.Anything, testUrl).Return("", false)
+			name:    "Public Collision (Exhaust Retries)",
+			ownerID: nil,
+			setup: func(s *MockLinkStore, g *MockCodeGenerator) {
+				s.EXPECT().GetCodeByURL(mock.Anything, testUrl).Return("", false)
 				g.EXPECT().Generate(6).Return("collision", nil).Times(3)
-				p.EXPECT().SaveLink(mock.Anything, mock.AnythingOfType("*models.LinkRecord")).Return(models.ErrCollision).Times(3)
+				s.EXPECT().SaveLink(mock.Anything, mock.AnythingOfType("*models.LinkRecord")).Return(models.ErrCollision).Times(3)
 			},
 			expectedErr: models.ErrFailedToGenerate,
 		},
 		{
-			name: "Successful - Recovery after Collision",
-			setup: func(p *MockLinkStore, _ *MockLinkStore, g *MockCodeGenerator) {
-				p.EXPECT().GetCodeByURL(mock.Anything, testUrl).Return("", false)
+			name:    "Successful - Recovery after Collision",
+			ownerID: nil,
+			setup: func(s *MockLinkStore, g *MockCodeGenerator) {
+				s.EXPECT().GetCodeByURL(mock.Anything, testUrl).Return("", false)
 
 				g.EXPECT().Generate(6).Return("code1", nil).Once()
-				p.EXPECT().SaveLink(mock.Anything, mock.AnythingOfType("*models.LinkRecord")).Return(models.ErrCollision).Once()
+				s.EXPECT().SaveLink(mock.Anything, mock.AnythingOfType("*models.LinkRecord")).Return(models.ErrCollision).Once()
 
 				g.EXPECT().Generate(6).Return("code2", nil).Once()
-				p.EXPECT().SaveLink(mock.Anything, mock.AnythingOfType("*models.LinkRecord")).Return(nil).Once()
+				s.EXPECT().SaveLink(mock.Anything, mock.AnythingOfType("*models.LinkRecord")).Return(nil).Once()
 			},
 			expectedCode: "code2",
 		},
 		{
 			name: "Generator Error",
-			setup: func(p *MockLinkStore, _ *MockLinkStore, g *MockCodeGenerator) {
-				p.EXPECT().GetCodeByURL(mock.Anything, testUrl).Return("", false)
+			setup: func(s *MockLinkStore, g *MockCodeGenerator) {
+				s.EXPECT().GetCodeByURL(mock.Anything, testUrl).Return("", false)
 				g.EXPECT().Generate(6).Return("", errUnexpected)
 			},
 			expectedErr: errUnexpected,
 		},
 		{
 			name: "Unexpected Store Error",
-			setup: func(p *MockLinkStore, _ *MockLinkStore, g *MockCodeGenerator) {
-				p.EXPECT().GetCodeByURL(mock.Anything, testUrl).Return("", false)
+			setup: func(s *MockLinkStore, g *MockCodeGenerator) {
+				s.EXPECT().GetCodeByURL(mock.Anything, testUrl).Return("", false)
 				g.EXPECT().Generate(6).Return("abc123", nil)
-				p.EXPECT().SaveLink(mock.Anything, mock.AnythingOfType("*models.LinkRecord")).Return(errUnexpected)
+				s.EXPECT().SaveLink(mock.Anything, mock.AnythingOfType("*models.LinkRecord")).Return(errUnexpected)
 			},
 			expectedErr: errUnexpected,
 		},
@@ -90,15 +88,14 @@ func TestLinkService_Create(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			ps := NewMockLinkStore(t)
-			rs := NewMockLinkStore(t)
+			ls := NewMockLinkStore(t)
 			cg := NewMockCodeGenerator(t)
 
 			if tt.setup != nil {
-				tt.setup(ps, rs, cg)
+				tt.setup(ls, cg)
 			}
 
-			svc := NewLinkService(ps, rs, cg)
+			svc := NewLinkService(ls, cg)
 			code, err := svc.Create(context.Background(), testUrl, tt.ownerID)
 
 			if tt.expectedErr != nil {
@@ -120,23 +117,23 @@ func TestLinkService_CreateCustom(t *testing.T) {
 		name        string
 		url         string
 		customCode  string
-		ownerID     string
-		setup       func(r *MockLinkStore)
+		ownerID     *string
+		setup       func(s *MockLinkStore)
 		expectedErr error
 	}{
 		{
 			name:       "Successful Custom Code Creation",
 			url:        testUrl,
 			customCode: customCode,
-			ownerID:    "user123",
-			setup: func(r *MockLinkStore) {
-				r.EXPECT().SaveLink(mock.Anything, mock.AnythingOfType("*models.LinkRecord")).Return(nil)
+			ownerID:    ptr("user123"),
+			setup: func(s *MockLinkStore) {
+				s.EXPECT().SaveLink(mock.Anything, mock.AnythingOfType("*models.LinkRecord")).Return(nil)
 			},
 		},
 		{
 			name: "Store Error",
-			setup: func(r *MockLinkStore) {
-				r.EXPECT().SaveLink(mock.Anything, mock.AnythingOfType("*models.LinkRecord")).Return(errUnexpected)
+			setup: func(s *MockLinkStore) {
+				s.EXPECT().SaveLink(mock.Anything, mock.AnythingOfType("*models.LinkRecord")).Return(errUnexpected)
 			},
 			expectedErr: errUnexpected,
 		},
@@ -144,13 +141,13 @@ func TestLinkService_CreateCustom(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			rs := NewMockLinkStore(t)
+			ls := NewMockLinkStore(t)
 
 			if tt.setup != nil {
-				tt.setup(rs)
+				tt.setup(ls)
 			}
 
-			svc := NewLinkService(nil, rs, nil)
+			svc := NewLinkService(ls, nil)
 			code, err := svc.CreateCustom(context.Background(), tt.url, tt.customCode, tt.ownerID)
 
 			if tt.expectedErr != nil {
@@ -167,35 +164,24 @@ func TestLinkService_Resolve(t *testing.T) {
 	tests := []struct {
 		name          string
 		code          string
-		setup         func(p *MockLinkStore, r *MockLinkStore)
+		setup         func(s *MockLinkStore)
 		expectedURL   string
 		expectedFound bool
 	}{
 		{
-			name: "Found in Public Store",
-			code: "public123",
-			setup: func(p *MockLinkStore, _ *MockLinkStore) {
-				p.EXPECT().LoadLink(mock.Anything, "public123").Return(&models.LinkRecord{URL: "http://public.com"}, true)
-			},
-			expectedURL:   "http://public.com",
-			expectedFound: true,
-		},
-		{
-			name: "Found in Private Store",
+			name: "Found",
 			code: "private123",
-			setup: func(p *MockLinkStore, r *MockLinkStore) {
-				p.EXPECT().LoadLink(mock.Anything, "private123").Return(nil, false)
-				r.EXPECT().LoadLink(mock.Anything, "private123").Return(&models.LinkRecord{URL: "http://private.com"}, true)
+			setup: func(s *MockLinkStore) {
+				s.EXPECT().LoadLink(mock.Anything, "private123").Return(&models.LinkRecord{URL: "http://private.com"}, true)
 			},
 			expectedURL:   "http://private.com",
 			expectedFound: true,
 		},
 		{
-			name: "Not Found in Any Store",
+			name: "Not Found",
 			code: "missing123",
-			setup: func(p *MockLinkStore, r *MockLinkStore) {
-				p.EXPECT().LoadLink(mock.Anything, "missing123").Return(nil, false)
-				r.EXPECT().LoadLink(mock.Anything, "missing123").Return(nil, false)
+			setup: func(s *MockLinkStore) {
+				s.EXPECT().LoadLink(mock.Anything, "missing123").Return(nil, false)
 			},
 			expectedURL:   "",
 			expectedFound: false,
@@ -204,14 +190,13 @@ func TestLinkService_Resolve(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			ps := NewMockLinkStore(t)
-			rs := NewMockLinkStore(t)
+			ls := NewMockLinkStore(t)
 
 			if tt.setup != nil {
-				tt.setup(ps, rs)
+				tt.setup(ls)
 			}
 
-			svc := NewLinkService(ps, rs, nil)
+			svc := NewLinkService(ls, nil)
 			url, found := svc.Resolve(context.Background(), tt.code)
 
 			assert.Equal(t, tt.expectedURL, url)

@@ -15,8 +15,8 @@ import (
 )
 
 type LinkService interface {
-	Create(ctx context.Context, url string, ownerID string) (string, error)
-	CreateCustom(ctx context.Context, url string, customCode string, ownerID string) (string, error)
+	Create(ctx context.Context, url string, ownerID *string) (string, error)
+	CreateCustom(ctx context.Context, url string, customCode string, ownerID *string) (string, error)
 	Resolve(ctx context.Context, code string) (string, bool)
 }
 

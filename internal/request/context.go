@@ -7,9 +7,12 @@ type contextKey string
 const userContextKey = contextKey("user")
 
 // UserID retrieves the user ID from the context, if available.
-func UserID(ctx context.Context) string {
-	id, _ := ctx.Value(userContextKey).(string)
-	return id
+func UserID(ctx context.Context) *string {
+	id, ok := ctx.Value(userContextKey).(string)
+	if !ok || id == "" {
+		return nil
+	}
+	return &id
 }
 
 // WithUserID returns a new context with the user ID set.

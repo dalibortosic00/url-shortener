@@ -41,13 +41,12 @@ func New(cfg *config.Config) (*App, error) {
 		return nil, fmt.Errorf("init db: %w", err)
 	}
 
-	publicStore := store.NewMemoryStore()
-	privateStore := store.NewDatabaseStore(db)
+	store := store.NewDatabaseStore(db)
 
 	randomGenerator := generators.NewRandomGenerator()
 
-	userService := services.NewUserService(privateStore, randomGenerator)
-	linkService := services.NewLinkService(publicStore, privateStore, randomGenerator)
+	userService := services.NewUserService(store, randomGenerator)
+	linkService := services.NewLinkService(store, randomGenerator)
 
 	authMiddleware := middleware.NewAuthMiddleware(userService)
 	srv := server.New(cfg, userService, linkService, authMiddleware, logger)

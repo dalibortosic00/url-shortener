@@ -32,8 +32,8 @@ func isAlphanumeric(s string) bool {
 }
 
 type LinkCreator interface {
-	Create(ctx context.Context, url string, ownerID string) (string, error)
-	CreateCustom(ctx context.Context, url string, customCode string, ownerID string) (string, error)
+	Create(ctx context.Context, url string, ownerID *string) (string, error)
+	CreateCustom(ctx context.Context, url string, customCode string, ownerID *string) (string, error)
 }
 
 type ShortenHandler struct {
@@ -125,7 +125,7 @@ func (h *ShortenHandler) Shorten(w http.ResponseWriter, r *http.Request) {
 	var err error
 
 	if req.CustomCode != "" {
-		if userID == "" {
+		if userID == nil {
 			util.RespondWithError(w, http.StatusForbidden, "Custom codes are only available for registered users")
 			return
 		}

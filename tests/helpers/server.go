@@ -23,11 +23,10 @@ func NewTestServer(t *testing.T) *httptest.Server {
 	db := NewTestDB(t, cfg.TestDatabaseURL)
 	gen := generators.NewRandomGenerator()
 
-	publicStore := store.NewMemoryStore()
-	privateStore := store.NewDatabaseStore(db)
+	store := store.NewDatabaseStore(db)
 
-	userService := services.NewUserService(privateStore, gen)
-	linkService := services.NewLinkService(publicStore, privateStore, gen)
+	userService := services.NewUserService(store, gen)
+	linkService := services.NewLinkService(store, gen)
 	authMiddleware := middleware.NewAuthMiddleware(userService)
 
 	srv := server.New(cfg, userService, linkService, authMiddleware, nil) // No logger for tests
