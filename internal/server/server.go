@@ -47,6 +47,7 @@ func New(
 func registerMiddleware(r *chi.Mux, logger *log.Logger) {
 	r.Use(chiMiddleware.RequestID)
 	r.Use(chiMiddleware.Recoverer)
+	r.Use(chiMiddleware.GetHead)
 	r.Use(cors.Handler(cors.Options{
 		AllowedOrigins: []string{"*"},
 		AllowedMethods: []string{"GET", "POST", "OPTIONS"},
