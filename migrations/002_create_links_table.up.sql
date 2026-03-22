@@ -2,7 +2,7 @@
 CREATE TABLE IF NOT EXISTS links (
     code VARCHAR(12) PRIMARY KEY,
     url TEXT NOT NULL,
-    owner_id UUID,
+    owner_id UUID REFERENCES users(id) ON DELETE CASCADE,
     created_at TIMESTAMP NOT NULL DEFAULT NOW()
 );
 
