@@ -17,8 +17,10 @@ type LinkStore interface {
 	// LoadLink retrieves the URL for a given code. Returns (url, true) if found.
 	LoadLink(ctx context.Context, code string) (*models.LinkRecord, bool)
 
-	// GetCodeByURL checks if a URL already has a code (for deduplication).
-	// Returns (code, true) if found, ("", false) otherwise.
+	// ListLinksByOwner retrieves all links owned by a specific user. Returns an empty slice if none found.
+	GetLinksByOwner(ctx context.Context, ownerID string) ([]models.LinkRecord, error)
+
+	// GetCodeByURL checks if a URL already has a code (for deduplication). Returns (code, true) if found, ("", false) otherwise.
 	GetCodeByURL(ctx context.Context, url string) (string, bool)
 }
 
@@ -97,4 +99,13 @@ func (s *LinkService) Resolve(ctx context.Context, code string) (string, bool) {
 	}
 
 	return "", false
+}
+
+func (s *LinkService) List(ctx context.Context, ownerID string) ([]models.LinkRecord, error) {
+	list, err := s.store.GetLinksByOwner(ctx, ownerID)
+	if err != nil {
+		return nil, err
+	}
+
+	return list, nil
 }

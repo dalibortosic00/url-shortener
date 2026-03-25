@@ -51,6 +51,27 @@ func (s *DatabaseStore) LoadLink(ctx context.Context, code string) (*models.Link
 	return &record, true
 }
 
+func (s *DatabaseStore) GetLinksByOwner(ctx context.Context, ownerID string) ([]models.LinkRecord, error) {
+	query := `SELECT code, url, owner_id, created_at FROM links WHERE owner_id = $1`
+
+	rows, err := s.db.QueryContext(ctx, query, ownerID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	links := make([]models.LinkRecord, 0)
+	for rows.Next() {
+		var record models.LinkRecord
+		if err := rows.Scan(&record.Code, &record.URL, &record.OwnerID, &record.CreatedAt); err != nil {
+			return nil, err
+		}
+		links = append(links, record)
+	}
+
+	return links, nil
+}
+
 func (s *DatabaseStore) GetCodeByURL(ctx context.Context, url string) (string, bool) {
 	query := `SELECT code FROM links WHERE url = $1 AND owner_id IS NULL LIMIT 1`
 

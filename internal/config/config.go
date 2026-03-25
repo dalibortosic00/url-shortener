@@ -3,6 +3,7 @@ package config
 import (
 	"log"
 	"os"
+	"strings"
 
 	"github.com/joho/godotenv"
 )
@@ -22,7 +23,7 @@ func Load() *Config {
 		log.Fatal("PORT environment variable is required")
 	}
 
-	baseURL := os.Getenv("BASE_URL")
+	baseURL := strings.TrimRight(os.Getenv("BASE_URL"), "/")
 	if baseURL == "" {
 		baseURL = "http://localhost:" + port
 	}

@@ -204,3 +204,58 @@ func TestLinkService_Resolve(t *testing.T) {
 		})
 	}
 }
+
+func TestLinkService_List(t *testing.T) {
+	errUnexpected := errors.New("unexpected error")
+
+	tests := []struct {
+		name         string
+		ownerID      string
+		setup        func(s *MockLinkStore)
+		expectedList []models.LinkRecord
+		expectedErr  error
+	}{
+		{
+			name:    "Successful List",
+			ownerID: "user123",
+			setup: func(s *MockLinkStore) {
+				s.EXPECT().GetLinksByOwner(mock.Anything, "user123").Return([]models.LinkRecord{
+					{Code: "code1", URL: "http://example.com/1"},
+					{Code: "code2", URL: "http://example.com/2"},
+				}, nil)
+			},
+			expectedList: []models.LinkRecord{
+				{Code: "code1", URL: "http://example.com/1"},
+				{Code: "code2", URL: "http://example.com/2"},
+			},
+		},
+		{
+			name:    "Store Error",
+			ownerID: "user123",
+			setup: func(s *MockLinkStore) {
+				s.EXPECT().GetLinksByOwner(mock.Anything, "user123").Return(nil, errUnexpected)
+			},
+			expectedErr: errUnexpected,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			ls := NewMockLinkStore(t)
+
+			if tt.setup != nil {
+				tt.setup(ls)
+			}
+
+			svc := NewLinkService(ls, nil)
+			list, err := svc.List(context.Background(), tt.ownerID)
+
+			if tt.expectedErr != nil {
+				assert.ErrorIs(t, err, tt.expectedErr)
+			} else {
+				assert.NoError(t, err)
+			}
+			assert.Equal(t, tt.expectedList, list)
+		})
+	}
+}

@@ -104,6 +104,74 @@ func (_c *MockLinkStore_GetCodeByURL_Call) RunAndReturn(run func(ctx context.Con
 	return _c
 }
 
+// GetLinksByOwner provides a mock function for the type MockLinkStore
+func (_mock *MockLinkStore) GetLinksByOwner(ctx context.Context, ownerID string) ([]models.LinkRecord, error) {
+	ret := _mock.Called(ctx, ownerID)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetLinksByOwner")
+	}
+
+	var r0 []models.LinkRecord
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string) ([]models.LinkRecord, error)); ok {
+		return returnFunc(ctx, ownerID)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string) []models.LinkRecord); ok {
+		r0 = returnFunc(ctx, ownerID)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]models.LinkRecord)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, string) error); ok {
+		r1 = returnFunc(ctx, ownerID)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// MockLinkStore_GetLinksByOwner_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetLinksByOwner'
+type MockLinkStore_GetLinksByOwner_Call struct {
+	*mock.Call
+}
+
+// GetLinksByOwner is a helper method to define mock.On call
+//   - ctx context.Context
+//   - ownerID string
+func (_e *MockLinkStore_Expecter) GetLinksByOwner(ctx interface{}, ownerID interface{}) *MockLinkStore_GetLinksByOwner_Call {
+	return &MockLinkStore_GetLinksByOwner_Call{Call: _e.mock.On("GetLinksByOwner", ctx, ownerID)}
+}
+
+func (_c *MockLinkStore_GetLinksByOwner_Call) Run(run func(ctx context.Context, ownerID string)) *MockLinkStore_GetLinksByOwner_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 string
+		if args[1] != nil {
+			arg1 = args[1].(string)
+		}
+		run(
+			arg0,
+			arg1,
+		)
+	})
+	return _c
+}
+
+func (_c *MockLinkStore_GetLinksByOwner_Call) Return(linkRecords []models.LinkRecord, err error) *MockLinkStore_GetLinksByOwner_Call {
+	_c.Call.Return(linkRecords, err)
+	return _c
+}
+
+func (_c *MockLinkStore_GetLinksByOwner_Call) RunAndReturn(run func(ctx context.Context, ownerID string) ([]models.LinkRecord, error)) *MockLinkStore_GetLinksByOwner_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // LoadLink provides a mock function for the type MockLinkStore
 func (_mock *MockLinkStore) LoadLink(ctx context.Context, code string) (*models.LinkRecord, bool) {
 	ret := _mock.Called(ctx, code)
