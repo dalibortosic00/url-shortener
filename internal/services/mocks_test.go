@@ -38,6 +38,69 @@ func (_m *MockLinkStore) EXPECT() *MockLinkStore_Expecter {
 	return &MockLinkStore_Expecter{mock: &_m.Mock}
 }
 
+// DeleteLink provides a mock function for the type MockLinkStore
+func (_mock *MockLinkStore) DeleteLink(ctx context.Context, code string, ownerID string) error {
+	ret := _mock.Called(ctx, code, ownerID)
+
+	if len(ret) == 0 {
+		panic("no return value specified for DeleteLink")
+	}
+
+	var r0 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, string) error); ok {
+		r0 = returnFunc(ctx, code, ownerID)
+	} else {
+		r0 = ret.Error(0)
+	}
+	return r0
+}
+
+// MockLinkStore_DeleteLink_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'DeleteLink'
+type MockLinkStore_DeleteLink_Call struct {
+	*mock.Call
+}
+
+// DeleteLink is a helper method to define mock.On call
+//   - ctx context.Context
+//   - code string
+//   - ownerID string
+func (_e *MockLinkStore_Expecter) DeleteLink(ctx interface{}, code interface{}, ownerID interface{}) *MockLinkStore_DeleteLink_Call {
+	return &MockLinkStore_DeleteLink_Call{Call: _e.mock.On("DeleteLink", ctx, code, ownerID)}
+}
+
+func (_c *MockLinkStore_DeleteLink_Call) Run(run func(ctx context.Context, code string, ownerID string)) *MockLinkStore_DeleteLink_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 string
+		if args[1] != nil {
+			arg1 = args[1].(string)
+		}
+		var arg2 string
+		if args[2] != nil {
+			arg2 = args[2].(string)
+		}
+		run(
+			arg0,
+			arg1,
+			arg2,
+		)
+	})
+	return _c
+}
+
+func (_c *MockLinkStore_DeleteLink_Call) Return(err error) *MockLinkStore_DeleteLink_Call {
+	_c.Call.Return(err)
+	return _c
+}
+
+func (_c *MockLinkStore_DeleteLink_Call) RunAndReturn(run func(ctx context.Context, code string, ownerID string) error) *MockLinkStore_DeleteLink_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // GetCodeByURL provides a mock function for the type MockLinkStore
 func (_mock *MockLinkStore) GetCodeByURL(ctx context.Context, url string) (string, bool) {
 	ret := _mock.Called(ctx, url)

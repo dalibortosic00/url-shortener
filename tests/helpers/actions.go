@@ -105,6 +105,21 @@ func LinksRaw(t *testing.T, ts *httptest.Server, apiKey string) *http.Response {
 	return linksRequest(t, ts, apiKey)
 }
 
+func Delete(t *testing.T, ts *httptest.Server, code string, apiKey string) {
+	t.Helper()
+	res := deleteRequest(t, ts, code, apiKey)
+	defer res.Body.Close()
+
+	if res.StatusCode != http.StatusNoContent {
+		t.Fatalf("delete got %d, want 204", res.StatusCode)
+	}
+}
+
+func DeleteRaw(t *testing.T, ts *httptest.Server, code string, apiKey string) *http.Response {
+	t.Helper()
+	return deleteRequest(t, ts, code, apiKey)
+}
+
 func shortenRequest(t *testing.T, ts *httptest.Server, params ShortenParams, opts ...ShortenOption) *http.Response {
 	t.Helper()
 	body := `{"url":"` + params.URL + `", "custom_code":"` + params.CustomCode + `"}`
@@ -158,6 +173,20 @@ func linksRequest(t *testing.T, ts *httptest.Server, apiKey string) *http.Respon
 	res, err := http.DefaultClient.Do(req)
 	if err != nil {
 		t.Fatalf("links request: %v", err)
+	}
+	return res
+}
+
+func deleteRequest(t *testing.T, ts *httptest.Server, code string, apiKey string) *http.Response {
+	t.Helper()
+	req, _ := http.NewRequest(http.MethodDelete, ts.URL+"/"+code, nil)
+	if apiKey != "" {
+		req.Header.Set("Authorization", "Bearer "+apiKey)
+	}
+
+	res, err := http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatalf("delete request: %v", err)
 	}
 	return res
 }

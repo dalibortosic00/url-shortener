@@ -259,3 +259,61 @@ func TestLinkService_List(t *testing.T) {
 		})
 	}
 }
+
+func TestLinkService_Delete(t *testing.T) {
+	errUnexpected := errors.New("unexpected error")
+
+	tests := []struct {
+		name        string
+		code        string
+		ownerID     string
+		setup       func(s *MockLinkStore)
+		expectedErr error
+	}{
+		{
+			name:    "Successful Delete - Authenticated User",
+			code:    "abc123",
+			ownerID: "user123",
+			setup: func(s *MockLinkStore) {
+				s.EXPECT().DeleteLink(mock.Anything, "abc123", "user123").Return(nil)
+			},
+		},
+		{
+			name:    "Code Not Found",
+			code:    "nonexistent",
+			ownerID: "user123",
+			setup: func(s *MockLinkStore) {
+				s.EXPECT().DeleteLink(mock.Anything, "nonexistent", "user123").Return(models.ErrRecordNotFound)
+			},
+			expectedErr: models.ErrRecordNotFound,
+		},
+		{
+			name:    "Store Error",
+			code:    "abc123",
+			ownerID: "user123",
+			setup: func(s *MockLinkStore) {
+				s.EXPECT().DeleteLink(mock.Anything, "abc123", "user123").Return(errUnexpected)
+			},
+			expectedErr: errUnexpected,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			ls := NewMockLinkStore(t)
+
+			if tt.setup != nil {
+				tt.setup(ls)
+			}
+
+			svc := NewLinkService(ls, nil)
+			err := svc.Delete(context.Background(), tt.code, tt.ownerID)
+
+			if tt.expectedErr != nil {
+				assert.ErrorIs(t, err, tt.expectedErr)
+			} else {
+				assert.NoError(t, err)
+			}
+		})
+	}
+}

@@ -22,6 +22,9 @@ type LinkStore interface {
 
 	// GetCodeByURL checks if a URL already has a code (for deduplication). Returns (code, true) if found, ("", false) otherwise.
 	GetCodeByURL(ctx context.Context, url string) (string, bool)
+
+	// DeleteLink removes a link record by code. Returns ErrNotFound if code doesn't exist or doesn't belong to owner.
+	DeleteLink(ctx context.Context, code string, ownerID string) error
 }
 
 type CodeGenerator interface {
@@ -108,4 +111,8 @@ func (s *LinkService) List(ctx context.Context, ownerID string) ([]models.LinkRe
 	}
 
 	return list, nil
+}
+
+func (s *LinkService) Delete(ctx context.Context, code string, ownerID string) error {
+	return s.store.DeleteLink(ctx, code, ownerID)
 }

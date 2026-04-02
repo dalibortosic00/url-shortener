@@ -87,6 +87,26 @@ func (s *DatabaseStore) GetCodeByURL(ctx context.Context, url string) (string, b
 	return code, true
 }
 
+func (s *DatabaseStore) DeleteLink(ctx context.Context, code string, ownerID string) error {
+	query := `DELETE FROM links WHERE code = $1 AND owner_id = $2`
+
+	result, err := s.db.ExecContext(ctx, query, code, ownerID)
+	if err != nil {
+		return err
+	}
+
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return err
+	}
+
+	if rowsAffected == 0 {
+		return models.ErrRecordNotFound
+	}
+
+	return nil
+}
+
 func (s *DatabaseStore) SaveUser(ctx context.Context, user *models.User) error {
 	query := `
 		INSERT INTO users (id, name, api_key)

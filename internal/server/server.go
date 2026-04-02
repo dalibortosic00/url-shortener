@@ -20,6 +20,7 @@ type LinkService interface {
 	CreateCustom(ctx context.Context, url string, customCode string, ownerID *string) (string, error)
 	Resolve(ctx context.Context, code string) (string, bool)
 	List(ctx context.Context, ownerID string) ([]models.LinkRecord, error)
+	Delete(ctx context.Context, code string, ownerID string) error
 }
 
 type UserService interface {
@@ -52,7 +53,7 @@ func registerMiddleware(r *chi.Mux, logger *log.Logger) {
 	r.Use(chiMiddleware.GetHead)
 	r.Use(cors.Handler(cors.Options{
 		AllowedOrigins: []string{"*"},
-		AllowedMethods: []string{"GET", "POST", "OPTIONS"},
+		AllowedMethods: []string{"GET", "POST", "DELETE", "OPTIONS"},
 		AllowedHeaders: []string{"Content-Type", "Authorization"},
 		MaxAge:         300,
 	}))
@@ -74,6 +75,7 @@ func registerRoutes(
 ) {
 	shortenHandler := handlers.NewShortenHandler(linkService, cfg.BaseURL)
 	linksHandler := handlers.NewLinksHandler(linkService, cfg.BaseURL)
+	deleteHandler := handlers.NewDeleteHandler(linkService)
 	resolveHandler := handlers.NewResolveHandler(linkService)
 	registerHandler := handlers.NewRegisterHandler(userService)
 
@@ -88,5 +90,6 @@ func registerRoutes(
 	r.Group(func(r chi.Router) {
 		r.Use(auth.RequireAuth)
 		r.Get("/links", linksHandler.List)
+		r.Delete("/{code}", deleteHandler.Delete)
 	})
 }
