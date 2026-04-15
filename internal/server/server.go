@@ -27,15 +27,23 @@ type UserService interface {
 	Create(ctx context.Context, name string) (string, error)
 }
 
+// RateLimitOptions groups rate limiting configuration for the server.
+type RateLimitOptions struct {
+	Limiter  *middleware.RateLimiter
+	Config   middleware.RateLimitConfig
+	Resolver middleware.PolicyResolver
+}
+
 func New(
 	cfg *config.Config,
 	userService UserService,
 	linkService LinkService,
 	auth *middleware.AuthMiddleware,
 	logger *log.Logger,
+	rateLimitOpts *RateLimitOptions,
 ) *http.Server {
 	r := chi.NewRouter()
-	registerMiddleware(r, logger)
+	registerMiddleware(r, logger, auth, rateLimitOpts)
 	registerRoutes(r, cfg, userService, linkService, auth)
 
 	return &http.Server{
@@ -47,10 +55,11 @@ func New(
 	}
 }
 
-func registerMiddleware(r *chi.Mux, logger *log.Logger) {
+func registerMiddleware(r *chi.Mux, logger *log.Logger, authMiddleware *middleware.AuthMiddleware, rateLimitOpts *RateLimitOptions) {
 	r.Use(chiMiddleware.RequestID)
 	r.Use(chiMiddleware.Recoverer)
 	r.Use(chiMiddleware.GetHead)
+	r.Use(chiMiddleware.RealIP)
 	r.Use(cors.Handler(cors.Options{
 		AllowedOrigins: []string{"*"},
 		AllowedMethods: []string{"GET", "POST", "DELETE", "OPTIONS"},
@@ -64,6 +73,15 @@ func registerMiddleware(r *chi.Mux, logger *log.Logger) {
 			NoColor: true,
 		}))
 	}
+
+	// Run OptionalAuth globally so that auth context is available to rate limiter
+	r.Use(authMiddleware.OptionalAuth)
+
+	policyResolver := rateLimitOpts.Resolver
+	if policyResolver == nil {
+		policyResolver = middleware.DefaultPolicyResolver(rateLimitOpts.Config)
+	}
+	r.Use(middleware.RateLimitMiddleware(rateLimitOpts.Limiter, policyResolver))
 }
 
 func registerRoutes(
@@ -81,11 +99,7 @@ func registerRoutes(
 
 	r.Post("/register", registerHandler.Register)
 	r.Get("/{code}", resolveHandler.Resolve)
-
-	r.Group(func(r chi.Router) {
-		r.Use(auth.OptionalAuth)
-		r.Post("/shorten", shortenHandler.Shorten)
-	})
+	r.Post("/shorten", shortenHandler.Shorten)
 
 	r.Group(func(r chi.Router) {
 		r.Use(auth.RequireAuth)

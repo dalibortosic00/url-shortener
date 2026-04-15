@@ -21,9 +21,10 @@ import (
 )
 
 type App struct {
-	server  *http.Server
-	db      *sql.DB
-	logFile *os.File
+	server      *http.Server
+	db          *sql.DB
+	logFile     *os.File
+	rateLimiter *middleware.RateLimiter
 }
 
 func New(cfg *config.Config) (*App, error) {
@@ -49,9 +50,21 @@ func New(cfg *config.Config) (*App, error) {
 	linkService := services.NewLinkService(store, randomGenerator)
 
 	authMiddleware := middleware.NewAuthMiddleware(userService)
-	srv := server.New(cfg, userService, linkService, authMiddleware, logger)
+	rateLimitConfig := middleware.RateLimitConfig{
+		AnonLimit:  cfg.RateLimitAnonRequests,
+		AnonWindow: cfg.RateLimitAnonWindow,
+		AuthLimit:  cfg.RateLimitAuthRequests,
+		AuthWindow: cfg.RateLimitAuthWindow,
+	}
+	rateLimiter := middleware.NewRateLimiter()
+	rateLimitOpts := &server.RateLimitOptions{
+		Limiter:  rateLimiter,
+		Config:   rateLimitConfig,
+		Resolver: nil, // Uses DefaultPolicyResolver
+	}
+	srv := server.New(cfg, userService, linkService, authMiddleware, logger, rateLimitOpts)
 
-	return &App{server: srv, db: db, logFile: logFile}, nil
+	return &App{server: srv, db: db, logFile: logFile, rateLimiter: rateLimiter}, nil
 }
 
 func (a *App) Run() {
@@ -62,6 +75,7 @@ func (a *App) Run() {
 		if err := a.logFile.Close(); err != nil {
 			log.Printf("log file close: %v", err)
 		}
+		a.rateLimiter.Stop()
 	}()
 
 	go func() {
