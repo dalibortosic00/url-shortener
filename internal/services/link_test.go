@@ -127,12 +127,37 @@ func TestLinkService_CreateCustom(t *testing.T) {
 			customCode: customCode,
 			ownerID:    ptr("user123"),
 			setup: func(s *MockLinkStore) {
+				s.EXPECT().CountCustomLinks(mock.Anything, "user123").Return(0, nil)
 				s.EXPECT().SaveLink(mock.Anything, mock.AnythingOfType("*models.LinkRecord")).Return(nil)
 			},
 		},
 		{
-			name: "Store Error",
+			name:       "Custom Link Limit Reached",
+			url:        testUrl,
+			customCode: customCode,
+			ownerID:    ptr("user123"),
 			setup: func(s *MockLinkStore) {
+				s.EXPECT().CountCustomLinks(mock.Anything, "user123").Return(5, nil)
+			},
+			expectedErr: models.ErrCustomLinkLimitReached,
+		},
+		{
+			name:       "Count Links Error",
+			url:        testUrl,
+			customCode: customCode,
+			ownerID:    ptr("user123"),
+			setup: func(s *MockLinkStore) {
+				s.EXPECT().CountCustomLinks(mock.Anything, "user123").Return(0, errUnexpected)
+			},
+			expectedErr: errUnexpected,
+		},
+		{
+			name:       "Store Error",
+			url:        testUrl,
+			customCode: customCode,
+			ownerID:    ptr("user123"),
+			setup: func(s *MockLinkStore) {
+				s.EXPECT().CountCustomLinks(mock.Anything, "user123").Return(2, nil)
 				s.EXPECT().SaveLink(mock.Anything, mock.AnythingOfType("*models.LinkRecord")).Return(errUnexpected)
 			},
 			expectedErr: errUnexpected,
@@ -152,10 +177,11 @@ func TestLinkService_CreateCustom(t *testing.T) {
 
 			if tt.expectedErr != nil {
 				assert.ErrorIs(t, err, tt.expectedErr)
+				assert.Empty(t, code)
 			} else {
 				assert.NoError(t, err)
+				assert.Equal(t, tt.customCode, code)
 			}
-			assert.Equal(t, tt.customCode, code)
 		})
 	}
 }

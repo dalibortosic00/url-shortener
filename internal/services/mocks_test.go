@@ -38,6 +38,72 @@ func (_m *MockLinkStore) EXPECT() *MockLinkStore_Expecter {
 	return &MockLinkStore_Expecter{mock: &_m.Mock}
 }
 
+// CountCustomLinks provides a mock function for the type MockLinkStore
+func (_mock *MockLinkStore) CountCustomLinks(ctx context.Context, ownerID string) (int, error) {
+	ret := _mock.Called(ctx, ownerID)
+
+	if len(ret) == 0 {
+		panic("no return value specified for CountCustomLinks")
+	}
+
+	var r0 int
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string) (int, error)); ok {
+		return returnFunc(ctx, ownerID)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string) int); ok {
+		r0 = returnFunc(ctx, ownerID)
+	} else {
+		r0 = ret.Get(0).(int)
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, string) error); ok {
+		r1 = returnFunc(ctx, ownerID)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// MockLinkStore_CountCustomLinks_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'CountCustomLinks'
+type MockLinkStore_CountCustomLinks_Call struct {
+	*mock.Call
+}
+
+// CountCustomLinks is a helper method to define mock.On call
+//   - ctx context.Context
+//   - ownerID string
+func (_e *MockLinkStore_Expecter) CountCustomLinks(ctx interface{}, ownerID interface{}) *MockLinkStore_CountCustomLinks_Call {
+	return &MockLinkStore_CountCustomLinks_Call{Call: _e.mock.On("CountCustomLinks", ctx, ownerID)}
+}
+
+func (_c *MockLinkStore_CountCustomLinks_Call) Run(run func(ctx context.Context, ownerID string)) *MockLinkStore_CountCustomLinks_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 string
+		if args[1] != nil {
+			arg1 = args[1].(string)
+		}
+		run(
+			arg0,
+			arg1,
+		)
+	})
+	return _c
+}
+
+func (_c *MockLinkStore_CountCustomLinks_Call) Return(n int, err error) *MockLinkStore_CountCustomLinks_Call {
+	_c.Call.Return(n, err)
+	return _c
+}
+
+func (_c *MockLinkStore_CountCustomLinks_Call) RunAndReturn(run func(ctx context.Context, ownerID string) (int, error)) *MockLinkStore_CountCustomLinks_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // DeleteLink provides a mock function for the type MockLinkStore
 func (_mock *MockLinkStore) DeleteLink(ctx context.Context, code string, ownerID string) error {
 	ret := _mock.Called(ctx, code, ownerID)

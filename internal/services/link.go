@@ -25,6 +25,9 @@ type LinkStore interface {
 
 	// DeleteLink removes a link record by code. Returns ErrNotFound if code doesn't exist or doesn't belong to owner.
 	DeleteLink(ctx context.Context, code string, ownerID string) error
+
+	// CountCustomLinks returns the number of custom links owned by a specific user.
+	CountCustomLinks(ctx context.Context, ownerID string) (int, error)
 }
 
 type CodeGenerator interface {
@@ -82,6 +85,15 @@ func (s *LinkService) Create(ctx context.Context, url string, ownerID *string) (
 }
 
 func (s *LinkService) CreateCustom(ctx context.Context, url string, customCode string, ownerID *string) (string, error) {
+	count, err := s.store.CountCustomLinks(ctx, *ownerID)
+	if err != nil {
+		return "", err
+	}
+
+	if count >= 5 {
+		return "", models.ErrCustomLinkLimitReached
+	}
+
 	record := &models.LinkRecord{
 		Code:      customCode,
 		URL:       url,

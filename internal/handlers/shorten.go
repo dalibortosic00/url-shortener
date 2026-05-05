@@ -139,6 +139,10 @@ func (h *ShortenHandler) Shorten(w http.ResponseWriter, r *http.Request) {
 			util.RespondWithError(w, http.StatusConflict, "This custom code is already taken")
 			return
 		}
+		if errors.Is(err, models.ErrCustomLinkLimitReached) {
+			util.RespondWithError(w, http.StatusForbidden, "Custom link limit reached")
+			return
+		}
 		util.RespondWithError(w, http.StatusInternalServerError, "Internal service error")
 		return
 	}

@@ -107,6 +107,18 @@ func (s *DatabaseStore) DeleteLink(ctx context.Context, code string, ownerID str
 	return nil
 }
 
+func (s *DatabaseStore) CountCustomLinks(ctx context.Context, ownerID string) (int, error) {
+	query := `SELECT COUNT(*) FROM links WHERE owner_id = $1 AND code IS NOT NULL`
+
+	var count int
+	err := s.db.QueryRowContext(ctx, query, ownerID).Scan(&count)
+	if err != nil {
+		return 0, err
+	}
+
+	return count, nil
+}
+
 func (s *DatabaseStore) SaveUser(ctx context.Context, user *models.User) error {
 	query := `
 		INSERT INTO users (id, name, api_key)
